@@ -1,0 +1,5 @@
+*.dll
+/src/*/bin
+/src/*/obj
+/src/*/Properties
+*.bak
