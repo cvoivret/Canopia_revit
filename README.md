@@ -6,6 +6,13 @@ They have been developped during the CANOPIA Project in order to help architect 
 Each functionnality is composed of three bricks : the core library, a revit command (without GUI), a revit extrenal app (with GUI).
 
 
+## TODO
+- add pictures on buttons for solar analysis
+- Ventilation : compute opening ratio for a wall, for a room, for a level
+- clean and comment
+- Find a way to properly log
+
+
 ## Compilation & installation
 Open the solution in VScode and build it !
 

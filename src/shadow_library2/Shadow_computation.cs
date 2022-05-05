@@ -210,7 +210,7 @@
                 else
                 {
                     //log.Add(" Number of cached element " + cached_solids.Count);
-                    (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, gface, -sunDirection, log);
+                    (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, gface, -sunDirection, ref log);
 
                     // No shadow candidates --> Full light / No shadow
                     if (shadow_candidates.Count() == 0)
@@ -646,7 +646,7 @@
 
         }
 
-        public (List<Solid>, double) GetPossibleShadowingSolids(Document doc, Face face, XYZ extrusion_dir, List<string> log)
+        public (List<Solid>, double) GetPossibleShadowingSolids(Document doc, Face face, XYZ extrusion_dir, ref List<string> log)
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc);
             Func<View3D, bool> isNotTemplate = v3 => !(v3.IsTemplate);
@@ -666,7 +666,7 @@
             Options options = new Options();
             options.ComputeReferences = true;
             //Face discretization to shoot rays
-            int Nx = 5, Ny = 5;
+            int Nx = 50, Ny = 50;
             double u = 0.0, v = 0.0;
             double du = (bbuv.Max[0] - bbuv.Min[0]) / (Nx - 1);
             double dv = (bbuv.Max[1] - bbuv.Min[1]) / (Ny - 1);
@@ -733,6 +733,7 @@
             {
 
                 Element el = doc.GetElement(elementId);
+                log.Add("      Candidates " + el.Id + " " + el.Name);
 
                 shadowing_solids.AddRange(GetSolids(el, log));
 
