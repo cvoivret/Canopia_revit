@@ -41,6 +41,9 @@ namespace VoivretProject
             View view = doc.ActiveView;
             Application app = uiapp.Application;
 
+            List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
+
+
             shadow_computation shadow_computer = new shadow_computation();
             //List<(Face, Face, Shadow_Configuration, Computation_status)> result;
             // to track of created volumes for display/hide
@@ -64,8 +67,8 @@ namespace VoivretProject
 
             foreach (Element window in windows)
             {
-                shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computer.AnalyzeShadowOnWindow();
+                results=shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
+                double sfa = shadow_computer.AnalyzeShadowOnWindow(results);
 
                 using (Transaction t = new Transaction(doc))
                 {
@@ -78,7 +81,7 @@ namespace VoivretProject
                     transaction.Start();
                     try
                     {
-                        win_ref_display = shadow_computer.DisplayShadow(doc, log);
+                        win_ref_display = shadow_computer.DisplayShadow(doc, results, log);
                         all_ref_display.AddRange(win_ref_display);
 
                     }
@@ -148,8 +151,8 @@ namespace VoivretProject
 
             UIDocument uidoc = commandData.Application.ActiveUIDocument;
 
-            
 
+            List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
 
             shadow_computation shadow_computer = new shadow_computation();
             //List<(Face, Face, Shadow_Configuration, Computation_status)> result;
@@ -231,8 +234,8 @@ namespace VoivretProject
 
                 foreach (Element window in windows)
             {
-                shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computer.AnalyzeShadowOnWindow();
+                results = shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
+                double sfa = shadow_computer.AnalyzeShadowOnWindow(results);
 
                 using (Transaction t = new Transaction(doc))
                 {
@@ -246,7 +249,7 @@ namespace VoivretProject
                     try
                     {
 
-                        win_ref_display = shadow_computer.DisplayShadow(doc, log);
+                        win_ref_display = shadow_computer.DisplayShadow(doc,results, log);
                         shadow_computer.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
                         all_ref_display.AddRange(win_ref_display);
 

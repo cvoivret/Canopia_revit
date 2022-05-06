@@ -20,11 +20,7 @@
     public class shadow_computation
     {
 
-        // to store raw result of computation
-        List<(Face, Face, Shadow_Configuration, Computation_status)> result;
-
-        
-
+       
         public enum Shadow_Configuration
         {
             notExposed,
@@ -170,7 +166,7 @@
         }
 
 
-        public void ComputeShadowOnWindow(Document doc, Element element, XYZ sunDirection, List<String> log)
+        public List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWindow(Document doc, Element element, XYZ sunDirection, List<String> log)
         {
             List<Face> glassFaces;
             List<Solid> glassSolids;
@@ -225,12 +221,12 @@
                         sface = null;
                         using (Transaction transaction = new Transaction(doc, "shadow_computation"))
                         {
-                            transaction.Start();
+                            //transaction.Start();
                             //shadow_face = ComputeShadow(doc, face, shadow_candidates, extrusion_dir3,proximity_max*1.2, transaction, log);
                             //shadow_face = ComputeShadowByfaceunionfallback(doc, gface, shadow_candidates, extrusion_dir3, proximity_max * 1.2, transaction, log);
-                            sface = ProjectShadowByfaceunion(doc, gsolid, gface, shadow_candidates, -sunDirection, proximity_max * 1.2, transaction, log);
+                            sface = ProjectShadowByfaceunion(doc, gsolid, gface, shadow_candidates, -sunDirection, proximity_max * 1.2, log);
 
-                            transaction.Commit();
+                            //transaction.Commit();
 
                             if (sface != null)
                             {
@@ -251,11 +247,92 @@
 
 
             }
-            this.result = temp_results;
+            
+            return temp_results;
+        }
+
+        public List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWall(Document doc, Face roomface,Solid wallportion, XYZ sun_dir, List<String> log)
+        {
+            
+            List<(Face, Face, Shadow_Configuration, Computation_status)> results = new List<(Face, Face, Shadow_Configuration, Computation_status)>();
+
+            List<Solid> shadow_candidates;
+
+            Shadow_Configuration config;
+            Computation_status status;
+
+            double proximity_max = 0.0;
+
+
+            XYZ facenormal = roomface.ComputeNormal(new UV(.5, .5));
+            Face exposedface = null;
+            
+            Face sface = null;
+            Solid shadow = null;
+            Solid light = null;
+            Solid s = null;
+
+
+
+            //s = GeometryCreationUtilities.CreateExtrusionGeometry(roomface.GetEdgesAsCurveLoops(), facenormal, wallWidth);
+
+            foreach (Face f in wallportion.Faces)
+            {
+                if (f.ComputeNormal(new UV(0.5, 0.5)).IsAlmostEqualTo(facenormal))
+                {
+                    exposedface = f;
+                }
+            }
+
+            if (facenormal.DotProduct(sun_dir) > 0.0)
+            {
+                
+                sface = null;
+                config = Shadow_Configuration.notExposed;
+                status = Computation_status.success;
+                results.Add((exposedface, sface, config, status));
+                return results;
+            }
+
+
+            (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, exposedface, -sun_dir, ref log);
+
+            log.Add(" Number of shadow candidates " + shadow_candidates.Count());
+
+            if (shadow_candidates.Count() == 0)
+            {
+                sface = null;
+                config = Shadow_Configuration.noShadow;
+                status = Computation_status.success;
+                results.Add((exposedface, sface, config, status));
+                return results;
+
+            }
+
+
+            sface = ProjectShadowByfaceunion(doc, wallportion, exposedface, shadow_candidates, -sun_dir, proximity_max * 1.2,  log);
+
+
+            if (sface != null)
+            {
+                config = Shadow_Configuration.computed;
+                status = Computation_status.success;
+
+            }
+            else
+            {
+                config = Shadow_Configuration.undefined;
+                status = Computation_status.faillure;
+                log.Add(" Computation faillure ");
+            }
+            results.Add((exposedface, sface, config, status));
+            return results;
+
             //return results;
         }
 
-        public double AnalyzeShadowOnWindow()//List<(Face, Face, Shadow_Configuration, Computation_status)> data)
+
+        public double AnalyzeShadowOnWindow(List<(Face, Face, Shadow_Configuration, Computation_status)> shadow_window)
         {
             Face gface, sface;
             Shadow_Configuration config;
@@ -265,9 +342,9 @@
             double total_shadow_area = 0.0;
             bool anyfaillure = false;
 
-            for (int i = 0; i < this.result.Count; i++)
+            for (int i = 0; i < shadow_window.Count; i++)
             {
-                (gface, sface, config, status) = this.result[i];
+                (gface, sface, config, status) = shadow_window[i];
 
                 if (status == Computation_status.faillure)
                 {
@@ -666,7 +743,7 @@
             Options options = new Options();
             options.ComputeReferences = true;
             //Face discretization to shoot rays
-            int Nx = 50, Ny = 50;
+            int Nx = 10, Ny = 10;
             double u = 0.0, v = 0.0;
             double du = (bbuv.Max[0] - bbuv.Min[0]) / (Nx - 1);
             double dv = (bbuv.Max[1] - bbuv.Min[1]) / (Ny - 1);
@@ -747,7 +824,7 @@
         }
 
 
-        public Face ProjectShadowByfaceunion(Document doc, Solid gsolid, Face gface, List<Solid> Candidates, XYZ extrusion_dir, double extrusion_dist, Transaction T, List<string> log)
+        public Face ProjectShadowByfaceunion(Document doc, Solid gsolid, Face gface, List<Solid> Candidates, XYZ extrusion_dir, double extrusion_dist, List<string> log)
         {
             //FamilyItemFactory factory = doc.FamilyCreate;
             //Form extruded = doc.FamilyCreate.NewExtrusionForm(true, ra, wall_normal.Multiply(10.0));
@@ -771,6 +848,8 @@
             catch (Exception e)
             {
                 log.Add("           Extrusion failled (exception) " + e.ToString());
+                log.Add("           extrusiondir =  " + extrusion_dir.ToString());
+                log.Add("           extrusiondist =  " + extrusion_dist.ToString());
             }
             sw.Stop();
             ts = sw.Elapsed;
@@ -1073,7 +1152,7 @@
 
         }
 
-        public List<ElementId> DisplayShadow(Document doc,  List<string> log)
+        public List<ElementId> DisplayShadow(Document doc, List<(Face, Face, Shadow_Configuration, Computation_status)> result,List<string> log)
         {
             // Extrude a little bit the surface and show it as a solid volume
             Face glass_face;
@@ -1121,9 +1200,11 @@
             ogsf.SetCutForegroundPatternColor(failColor);
 
             DirectShape ds;
-
+            
+           
             for (int i = 0; i < result.Count; i++)
             {
+                
                 glass_face = result[i].Item1;
                 shadow_face = result[i].Item2;
                 config = result[i].Item3;

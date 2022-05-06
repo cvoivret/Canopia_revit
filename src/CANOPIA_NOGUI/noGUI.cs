@@ -22,7 +22,7 @@ namespace CANOPIA_NOGUI
 
     [Transaction(TransactionMode.Manual)]
 
-    class noGUI : IExternalCommand
+    class noGUI_window : IExternalCommand
     {
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -63,11 +63,12 @@ namespace CANOPIA_NOGUI
             ICollection<Element> windows = collector_w.OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_Windows).ToElements();
 
 
+            List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
 
             foreach (Element window in windows)
             {
-                shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computer.AnalyzeShadowOnWindow();
+                results = shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
+                double sfa = shadow_computer.AnalyzeShadowOnWindow(results);
 
                 using (Transaction t = new Transaction(doc))
                 {
@@ -80,7 +81,7 @@ namespace CANOPIA_NOGUI
                     transaction.Start();
                     try
                     {
-                        win_ref_display = shadow_computer.DisplayShadow(doc, log);
+                        win_ref_display = shadow_computer.DisplayShadow(doc, results, log);
                         shadow_computer.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
                         all_ref_display.AddRange(win_ref_display);
 
@@ -161,7 +162,7 @@ namespace CANOPIA_NOGUI
     }
 
     [Transaction(TransactionMode.Manual)]
-    public class rooms : IExternalCommand
+    public class noGUI_wall : IExternalCommand
     {
         public Result Execute(
           ExternalCommandData commandData,
@@ -182,361 +183,143 @@ namespace CANOPIA_NOGUI
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
+            List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
+
+            List< List < (Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status) > > resultslist = 
+                new List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>>();
+
+            IList<ElementId> win_ref_display;
 
             shadow_computation shadow_computer = new shadow_computation();
             SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
             XYZ sun_dir;
             sun_dir = shadow_computer.GetSunDirection(view);
+
             List<Solid> shadow_candidates;
             double prox_max = 0.0;
-            try
+
+            
+            Solid wallportion = null;
+
+
+
+            SpatialElementBoundaryOptions sebOptions
+              = new SpatialElementBoundaryOptions
+              {
+                  SpatialElementBoundaryLocation
+                  = SpatialElementBoundaryLocation.Finish
+              };
+
+            IEnumerable<Element> rooms
+              = new FilteredElementCollector(doc)
+                .OfClass(typeof(SpatialElement))
+                .Where<Element>(e => (e is Room));
+
+
+
+            BuildingEnvelopeAnalyzerOptions beao = new BuildingEnvelopeAnalyzerOptions();
+            BuildingEnvelopeAnalyzer bea = BuildingEnvelopeAnalyzer.Create(doc, beao);
+            IList<LinkElementId> outside = bea.GetBoundingElements();
+            IList<ElementId> outsideelements = new List<ElementId>();
+            foreach (LinkElementId lid in outside)
             {
-                SpatialElementBoundaryOptions sebOptions
-                  = new SpatialElementBoundaryOptions
-                  {
-                      SpatialElementBoundaryLocation
-                      = SpatialElementBoundaryLocation.Finish
-                  };
+                outsideelements.Add(lid.HostElementId);
+                //log.Add(" host id " + lid.HostElementId + " linekd id " + lid.LinkedElementId);
+                //log.Add(outsideelements.Count().ToString());
+            }
 
-                IEnumerable<Element> rooms
-                  = new FilteredElementCollector(doc)
-                    .OfClass(typeof(SpatialElement))
-                    .Where<Element>(e => (e is Room));
+            foreach (Room room in rooms)
+            {
+                if (room == null) continue;
+                if (room.Location == null) continue;
+                if (room.Area.Equals(0)) continue;
+                log.Add(" \n ");
+                log.Add("=== Room found : " + room.Name);
+                Autodesk.Revit.DB.SpatialElementGeometryCalculator calc =
+                  new Autodesk.Revit.DB.SpatialElementGeometryCalculator(
+                    doc, sebOptions);
 
-                List<string> compareWallAndRoom = new List<string>();
-                //OpeningHandler openingHandler = new OpeningHandler();
+                SpatialElementGeometryResults georesults
+                  = calc.CalculateSpatialElementGeometry(
+                    room);
 
-                // List<SpatialBoundaryCache> lstSpatialBoundaryCache
-                //  = new List<SpatialBoundaryCache>();
+                Solid roomSolid = georesults.GetGeometry();
 
-                BuildingEnvelopeAnalyzerOptions beao = new BuildingEnvelopeAnalyzerOptions();
-                BuildingEnvelopeAnalyzer bea = BuildingEnvelopeAnalyzer.Create(doc, beao);
-                IList<LinkElementId> outside = bea.GetBoundingElements();
-                IList<ElementId> outsideelements = new List<ElementId>();
-                foreach (LinkElementId lid in outside)
+                foreach (Face face in georesults.GetGeometry().Faces)
                 {
-                    outsideelements.Add(lid.HostElementId);
-                    //log.Add(" host id " + lid.HostElementId + " linekd id " + lid.LinkedElementId);
-                    //log.Add(outsideelements.Count().ToString());
-                }
+                    IList<SpatialElementBoundarySubface> boundaryFaceInfo
+                      = georesults.GetBoundaryFaceInfo(face);
+                    log.Add(" Number of subsurface " + boundaryFaceInfo.Count());
 
-                foreach (Room room in rooms)
-                {
-                    if (room == null) continue;
-                    if (room.Location == null) continue;
-                    if (room.Area.Equals(0)) continue;
-                    log.Add(" \n ");
-                    log.Add("=== Room found : " + room.Name);
-                    Autodesk.Revit.DB.SpatialElementGeometryCalculator calc =
-                      new Autodesk.Revit.DB.SpatialElementGeometryCalculator(
-                        doc, sebOptions);
-
-                    SpatialElementGeometryResults results
-                      = calc.CalculateSpatialElementGeometry(
-                        room);
-
-                    Solid roomSolid = results.GetGeometry();
-
-                    foreach (Face face in results.GetGeometry().Faces)
+                    foreach (var spatialSubFace in boundaryFaceInfo)
                     {
-                        IList<SpatialElementBoundarySubface> boundaryFaceInfo
-                          = results.GetBoundaryFaceInfo(face);
-                        log.Add(" Number of subsurface " + boundaryFaceInfo.Count());
-
-                        foreach (var spatialSubFace in boundaryFaceInfo)
+                        if (spatialSubFace.SubfaceType
+                          != SubfaceType.Side)
                         {
-                            if (spatialSubFace.SubfaceType
-                              != SubfaceType.Side)
-                            {
-                                continue;
-                            }
-                            log.Add(" spatialsubface typt  " + SubfaceType.Side);
+                            continue;
+                        }
+                        log.Add(" spatialsubface typt  " + SubfaceType.Side);
 
-                            //SpatialBoundaryCache spatialData
-                            // = new SpatialBoundaryCache();
+                        //SpatialBoundaryCache spatialData
+                        // = new SpatialBoundaryCache();
 
-                            Wall wall = doc.GetElement(spatialSubFace
-                              .SpatialBoundaryElement.HostElementId)
-                                as Wall;
+                        Wall wall = doc.GetElement(spatialSubFace
+                          .SpatialBoundaryElement.HostElementId)
+                            as Wall;
 
-                            if (wall == null)
-                            {
-                                continue;
-                            }
-                            log.Add(" Hosting wall  " + wall.Id);
+                        if (wall == null)
+                        {
+                            continue;
+                        }
+                        log.Add(" Hosting wall  " + wall.Id);
 
-                            if (!outsideelements.Contains(wall.Id))
-                            {
-                                log.Add("       Inside wall ");
-                                continue;
-                            }
-                            //extrude room face to outisde limit of outside wall
+                        if (!outsideelements.Contains(wall.Id))
+                        {
+                            log.Add("       Inside wall ");
+                            continue;
+                        }
+                        //extrude room face to outisde limit of outside wall
 
-                            XYZ facenormal = face.ComputeNormal(new UV(.5, .5));
-                            Face facetoextrude = null;
-                            Face sface = null;
-                            Solid shadow = null;
-                            Solid light = null;
-                            Solid s = null;
+                        XYZ facenormal = face.ComputeNormal(new UV(.5, .5));
 
+                        wallportion = GeometryCreationUtilities.CreateExtrusionGeometry(face.GetEdgesAsCurveLoops(), facenormal, 1.0001*wall.Width);
+                        log.Add(" Wall epaisseur " + wall.Width);
 
+                        results = shadow_computer.ComputeShadowOnWall(doc, face, wallportion, sun_dir, log); 
+                        resultslist.Add(results);
 
+                        
 
-                            s = GeometryCreationUtilities.CreateExtrusionGeometry(face.GetEdgesAsCurveLoops(), facenormal, wall.Width);
+                        
+                    } // end foreach subface from which room bounding elements are derived
 
-                            foreach (Face f in s.Faces)
-                            {
-                                if (f.ComputeNormal(new UV(0.5, 0.5)).DotProduct(facenormal) >= 0.999999)
-                                {
-                                    facetoextrude = f;
-                                }
-                            }
+                } // end foreach Face
 
-                            if (facenormal.DotProduct(sun_dir) > 0.0)
-                            {
-                                log.Add(" Wall not exposed to sun ");
-                                using (Transaction t1 = new Transaction(doc, "extrusion"))
-                                {
-                                    t1.Start();
-                                    FilteredElementCollector fillPatternElementFilter = new FilteredElementCollector(doc);
-                                    fillPatternElementFilter.OfClass(typeof(FillPatternElement));
-                                    FillPatternElement fillPatternElement = fillPatternElementFilter.First(f => (f as FillPatternElement).GetFillPattern().IsSolidFill) as FillPatternElement;
+            } // end foreach Room
 
-                                    OverrideGraphicSettings ogss = new OverrideGraphicSettings();
-                                    ogss.SetSurfaceForegroundPatternId(fillPatternElement.Id);
-                                    Color shadowColor = new Color(0, 0, 0);
-                                    ogss.SetProjectionLineColor(shadowColor);
-                                    ogss.SetSurfaceForegroundPatternColor(shadowColor);
-                                    ogss.SetCutForegroundPatternColor(shadowColor);
-                                    DirectShape ds;
-                                    ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                                    ds.ApplicationId = "Application id";
-                                    ds.ApplicationDataId = "Geometry object id";
-                                    ds.SetShape(new GeometryObject[] { s });
-                                    doc.ActiveView.SetElementOverrides(ds.Id, ogss);
-                                    //idlist.Add(ds.Id);
-                                    t1.Commit();
-                                }
-                                continue;
-                            }
-
-
-
-                            (shadow_candidates, prox_max) = shadow_computer.GetPossibleShadowingSolids(doc, facetoextrude, sun_dir, ref log);
-                            log.Add(" Number of shadow candidates " + shadow_candidates.Count());
-                            
-
-                            using (Transaction t2 = new Transaction(doc, "extrusion"))
-                            {
-
-                                sface = shadow_computer.ProjectShadowByfaceunion(doc, s, facetoextrude, shadow_candidates, -sun_dir, prox_max * 1.2, t2, log);
-                            }
-
-                            if (sface == null)
-                            {
-                                log.Add(" sface nullllllllllllll ");
-                                continue;
-                            }
-
-
-
-                            //s = GeometryCreationUtilities.CreateExtrusionGeometry(sface.GetEdgesAsCurveLoops(), facenormal, wall.Width);
-                            try
-                            {
-
-                            
-                            shadow = GeometryCreationUtilities.CreateExtrusionGeometry(sface.GetEdgesAsCurveLoops(), facenormal, 1.1 * wall.Width);
-
-                            light = GeometryCreationUtilities.CreateExtrusionGeometry(facetoextrude.GetEdgesAsCurveLoops(), facenormal, 1.1 * wall.Width);
-
-                            BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(light, shadow, BooleanOperationsType.Difference);
-                            
-                            }
-                            catch
-                            {
-                                log.Add(" Extrusion to display fail ");
-                                continue;
-                            }
-
-                            using (Transaction t1 = new Transaction(doc, "extrusion"))
-                            {
-                                t1.Start();
-                                FilteredElementCollector fillPatternElementFilter = new FilteredElementCollector(doc);
-                                fillPatternElementFilter.OfClass(typeof(FillPatternElement));
-                                FillPatternElement fillPatternElement = fillPatternElementFilter.First(f => (f as FillPatternElement).GetFillPattern().IsSolidFill) as FillPatternElement;
-
-                                OverrideGraphicSettings ogss = new OverrideGraphicSettings();
-                                ogss.SetSurfaceForegroundPatternId(fillPatternElement.Id);
-                                Color shadowColor = new Color(121, 44, 222);
-                                ogss.SetProjectionLineColor(shadowColor);
-                                ogss.SetSurfaceForegroundPatternColor(shadowColor);
-                                ogss.SetCutForegroundPatternColor(shadowColor);
-                                DirectShape ds;
-                                ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                                ds.ApplicationId = "Application id";
-                                ds.ApplicationDataId = "Geometry object id";
-                                ds.SetShape(new GeometryObject[] { shadow });
-                                doc.ActiveView.SetElementOverrides(ds.Id, ogss);
-
-                                OverrideGraphicSettings ogsl = new OverrideGraphicSettings();
-                                ogsl.SetSurfaceForegroundPatternId(fillPatternElement.Id);
-                                Color lightColor = new Color(230, 238, 4);
-                                ogsl.SetProjectionLineColor(lightColor);
-                                ogsl.SetSurfaceForegroundPatternColor(lightColor);
-                                ogsl.SetCutForegroundPatternColor(lightColor);
-
-
-                                ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                                ds.ApplicationId = "Application id";
-                                ds.ApplicationDataId = "Geometry object id";
-                                ds.SetShape(new GeometryObject[] { light });
-                                doc.ActiveView.SetElementOverrides(ds.Id, ogsl);
-
-                                //idlist.Add(ds.Id);
-                                t1.Commit();
-                            }
-
-
-
-
-
-                            // compute shadow on the face
-
-                            WallType wallType = doc.GetElement(
-                              wall.GetTypeId()) as WallType;
-
-                            if (wallType.Kind == WallKind.Curtain)
-                            {
-                                // Leave out, as curtain walls are not painted.
-
-                                //LogCreator.LogEntry("WallType is CurtainWall");
-
-                                continue;
-                            }
-
-                            ElementMulticategoryFilter emcf
-                             = new ElementMulticategoryFilter(
-                                new List<ElementId>() {
-                                new ElementId(BuiltInCategory.OST_Windows),
-                                new ElementId(BuiltInCategory.OST_Doors) });
-                            IList<ElementId> dependentElementId = new List<ElementId>();
-                            dependentElementId = wall.GetDependentElements(emcf);
-
-                            foreach (ElementId elementId in dependentElementId)
-                            {
-                                log.Add(" ----  dependent element " + elementId + " " + doc.GetElement(elementId).Name);
-                            }
-
-                            HostObject hostObject = wall as HostObject;
-
-                            IList<ElementId> insertsThisHost
-                              = hostObject.FindInserts(
-                                true, false, true, true);
-
-                            //double openingArea = 0;
-                            /*
-                            foreach (ElementId idInsert in insertsThisHost)
-                            {
-                                string countOnce = room.Id.ToString()
-                                  + wall.Id.ToString() + idInsert.ToString();
-
-                                if (!compareWallAndRoom.Contains(countOnce))
-                                {
-                                    Element elemOpening = doc.GetElement(
-                                      idInsert) as Element;
-
-                                    openingArea = openingArea
-                                      + openingHandler.GetOpeningArea(
-                                        wall, elemOpening, room, roomSolid);
-
-                                    compareWallAndRoom.Add(countOnce);
-                                }
-                            }
-
-                            // Cache SpatialElementBoundarySubface info.
-
-                            spatialData.roomName = room.Name;
-                            spatialData.idElement = wall.Id;
-                            spatialData.idMaterial = spatialSubFace
-                              .GetBoundingElementFace().MaterialElementId;
-                            spatialData.dblNetArea = Util.sqFootToSquareM(
-                              spatialSubFace.GetSubface().Area - openingArea);
-                            spatialData.dblOpeningArea = Util.sqFootToSquareM(
-                              openingArea);
-
-                            lstSpatialBoundaryCache.Add(spatialData);
-                            */
-                        } // end foreach subface from which room bounding elements are derived
-
-                    } // end foreach Face
-
-                } // end foreach Room
-
-                List<string> t = new List<string>();
-
-                /*List<SpatialBoundaryCache> groupedData
-                  = SortByRoom(lstSpatialBoundaryCache);
-
-                foreach (SpatialBoundaryCache sbc in groupedData)
-                {
-                    t.Add(sbc.roomName
-                      + "; all wall types and materials: "
-                      + sbc.AreaReport);
-                }*/
-
-                //Util.InfoMsg2("Total Net Area in m2 by Room  VOIVRET",
-                // string.Join(System.Environment.NewLine, t));
-
-                t.Clear();
-
-                //groupedData = SortByRoomAndWallType(
-                // lstSpatialBoundaryCache);
-
-                /* foreach (SpatialBoundaryCache sbc in groupedData)
-                 {
-                     Element elemWall = doc.GetElement(
-                       sbc.idElement) as Element;
-
-                     t.Add(sbc.roomName + "; " + elemWall.Name
-                       + "(" + sbc.idElement.ToString() + "): "
-                       + sbc.AreaReport);
-                 }
-                */
-
-                //Util.InfoMsg2("Net Area in m2 by Wall Type",
-                // string.Join(System.Environment.NewLine, t));
-
-                t.Clear();
-                /*
-                groupedData = SortByRoomAndMaterial(
-                  lstSpatialBoundaryCache);
-
-                foreach (SpatialBoundaryCache sbc in groupedData)
-                {
-                    string materialName
-                      = (sbc.idMaterial == ElementId.InvalidElementId)
-                        ? string.Empty
-                        : doc.GetElement(sbc.idMaterial).Name;
-
-                    t.Add(sbc.roomName + "; " + materialName + ": "
-                      + sbc.AreaReport);
-                }
-                */
-
-                //Util.InfoMsg2(
-                //"Net Area in m2 by Outer Layer Material",
-                //string.Join(System.Environment.NewLine, t));
-                log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
-                File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
-                rc = Result.Succeeded;
-            }
-            catch (Exception ex)
+            foreach(var res in resultslist)
             {
-                TaskDialog.Show("Room Boundaries",
-                  ex.Message + "\r\n" + ex.StackTrace);
+                using (Transaction transaction = new Transaction(doc, "shadow_display"))
+                {
+                    transaction.Start();
+                    try
+                    {
+                        win_ref_display = shadow_computer.DisplayShadow(doc, res, log);
+                    }
+                    catch (Exception e)
+                    {
+                        log.Add("           Display Extrusion failled (exception) " + e.ToString());
+                    }
 
-                rc = Result.Failed;
+                    transaction.Commit();
+                }
             }
+
+           
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
+            File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+            rc = Result.Succeeded;
+
             return rc;
         }
 
