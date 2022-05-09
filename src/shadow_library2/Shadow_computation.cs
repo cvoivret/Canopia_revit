@@ -206,7 +206,7 @@
                 else
                 {
                     //log.Add(" Number of cached element " + cached_solids.Count);
-                    (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, gface, -sunDirection, ref log);
+                    (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, gface, -sunDirection,5,5,0, ref log);
 
                     // No shadow candidates --> Full light / No shadow
                     if (shadow_candidates.Count() == 0)
@@ -295,7 +295,7 @@
             }
 
 
-            (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, exposedface, -sun_dir, ref log);
+            (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, exposedface, -sun_dir,10,10,30, ref log);
 
             log.Add(" Number of shadow candidates " + shadow_candidates.Count());
 
@@ -723,7 +723,7 @@
 
         }
 
-        public (List<Solid>, double) GetPossibleShadowingSolids(Document doc, Face face, XYZ extrusion_dir, ref List<string> log)
+        public (List<Solid>, double) GetPossibleShadowingSolids(Document doc, Face face, XYZ sun_dir, int Nu, int Nv,int Nw, ref List<string> log)
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc);
             Func<View3D, bool> isNotTemplate = v3 => !(v3.IsTemplate);
@@ -738,15 +738,16 @@
 
             BoundingBoxUV bbuv = face.GetBoundingBox();
             UV facecenter = new UV(0.5 * (bbuv.Min[0] + bbuv.Max[0]), 0.5 * (bbuv.Min[1] + bbuv.Max[1]));
+            XYZ normal = face.ComputeNormal(facecenter);
             //Plane plane = Plane.CreateByNormalAndOrigin(wall_normal, face.Evaluate(facecenter));
             //log.Add("   Face center =  " + face.Evaluate(facecenter));// GetBoundingBox().Min[0]+ " "+face.GetBoundingBox().Max);
             Options options = new Options();
             options.ComputeReferences = true;
             //Face discretization to shoot rays
-            int Nx = 10, Ny = 10;
+            //int Nu = 10, Nv = 10;
             double u = 0.0, v = 0.0;
-            double du = (bbuv.Max[0] - bbuv.Min[0]) / (Nx - 1);
-            double dv = (bbuv.Max[1] - bbuv.Min[1]) / (Ny - 1);
+            double du = (bbuv.Max[0] - bbuv.Min[0]) / (Nu - 1);
+            double dv = (bbuv.Max[1] - bbuv.Min[1]) / (Nv - 1);
             Stopwatch sw = new Stopwatch();
             Stopwatch swmacro = new Stopwatch();
             TimeSpan ts;
@@ -754,16 +755,75 @@
 
             List<ReferenceWithContext> referenceWithContexts2 = new List<ReferenceWithContext>();
             swmacro.Restart();
-            for (int i = 0; i < Nx; ++i)
+            for (int i = 0; i < Nu; ++i)
             {
-                for (int j = 0; j < Ny; ++j)
+                for (int j = 0; j < Nv; ++j)
                 {
                     u = bbuv.Min[0] + du * i;
                     v = bbuv.Min[1] + dv * j;
                     //UV origin = ;
-                    referenceWithContexts2.AddRange(refIntersector.Find(face.Evaluate(new UV(u, v)), extrusion_dir).ToList());
+                    referenceWithContexts2.AddRange(refIntersector.Find(face.Evaluate(new UV(u, v)), sun_dir).ToList());
                 }
             }
+
+            // search for candidates with rays parallels to the surface
+            // usefull for wall (large surface and small shadowing devices when projected in surface plan)
+            if( Nw>0)
+            {
+
+                Transform t = face.ComputeDerivatives(new UV(0.0, 0.0));
+                XYZ Zaxis = new XYZ(0.0, 0.0, 1.0);
+                UV lowest = null;
+                XYZ rayOrigin = null;
+
+
+                // looking for vertical UV axis 
+                // work only for vertical faces
+
+                if (face.Evaluate(bbuv.Max).Z > face.Evaluate(bbuv.Min).Z)
+                {
+                    lowest = bbuv.Min;
+                }
+                else
+                {
+                    lowest = bbuv.Max;
+                }
+
+
+                if ( t.BasisX.DotProduct(Zaxis)>=0.99999999)
+                {
+                    // U vector is vertical
+                    
+                    // discretization along V and ray shooting along Z
+                    for (int i = 0; i < Nw; ++i)
+                    {
+                        u = bbuv.Min[0] + du * i;
+                        // offset the origin to the normal direction ( close to 30 mm)
+                        rayOrigin = face.Evaluate(new UV(u, lowest.V))+0.01*normal;
+                        referenceWithContexts2.AddRange(refIntersector.Find(rayOrigin, Zaxis).ToList()); ;
+                    }
+
+                }
+                else if (t.BasisY.DotProduct(Zaxis) >= 0.99999999)
+                {
+                    // V vector is vertical
+
+                    // discretization along U and ray shooting along Z
+                    for (int i = 0; i < Nw; ++i)
+                    {
+                        v = bbuv.Min[1] + dv * i;
+                        rayOrigin = face.Evaluate(new UV(lowest.U, v)) + 0.01 * normal;
+                        referenceWithContexts2.AddRange(refIntersector.Find(rayOrigin, Zaxis).ToList());
+                    }
+                }
+                else
+                {
+                    log.Add(" No Face Axis oriented along Z");
+                }
+
+
+            }
+
             swmacro.Stop();
             ts = swmacro.Elapsed;
             elapsedTime = String.Format("---- ray shooting     : {0:N5}  ms", ts.TotalMilliseconds);
@@ -774,15 +834,7 @@
             double proximity_max = 0.0;
             foreach (ReferenceWithContext rc in referenceWithContexts2)
             {
-                // Reference reference = rc.GetReference();
-                /*if (winRef.Contains(rc.GetReference()))
-                {
-                    //self intersection
-                    //log.Add("+++++ SELF Intersection ");
-                    //log.Add("       "+rc.GetReference().ElementId); 
-                    // continue;
-
-                }*/
+                
                 proximity_max = Math.Max(proximity_max, rc.Proximity);
                 elementIds.Add(rc.GetReference().ElementId);
 
