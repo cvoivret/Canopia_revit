@@ -52,12 +52,12 @@ namespace VoivretProject
 
             SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
             XYZ sun_dir;
-            sun_dir = shadow_computer.GetSunDirection(view);
+            sun_dir = utils.GetSunDirection(view);
 
             // create a shared parameter to attach shadow analysis result to each window
             bool spcreationOK;
             Guid sfaguid;
-            (spcreationOK, sfaguid) = shadow_computer.createSharedParameterForWindows(doc, app, log);
+            (spcreationOK, sfaguid) = utils.createSharedParameterForWindows(doc, app, log);
 
             //Collect windows
             Options options = new Options();
@@ -67,8 +67,8 @@ namespace VoivretProject
 
             foreach (Element window in windows)
             {
-                results=shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computer.AnalyzeShadowOnWindow(results);
+                results= shadow_computation.ComputeShadowOnWindow(doc, window, sun_dir, log);
+                double sfa = shadow_computation.AnalyzeShadowOnWindow(results);
 
                 using (Transaction t = new Transaction(doc))
                 {
@@ -81,7 +81,7 @@ namespace VoivretProject
                     transaction.Start();
                     try
                     {
-                        win_ref_display = shadow_computer.DisplayShadow(doc, results, log);
+                        win_ref_display = shadow_computation.DisplayShadow(doc, results, log);
                         all_ref_display.AddRange(win_ref_display);
 
                     }
@@ -162,13 +162,13 @@ namespace VoivretProject
 
             SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
             XYZ sun_dir;
-            sun_dir = shadow_computer.GetSunDirection(view);
+            sun_dir = utils.GetSunDirection(view);
 
             // create a shared parameter to attach shadow analysis result to each window
             bool spcreationOK;
             Guid sfaguid, ESguid;
-            (spcreationOK, sfaguid) = shadow_computer.createSharedParameterForWindows(doc, app, log);
-            ESguid = shadow_computer.createDataStorageWindow(doc, log);
+            (spcreationOK, sfaguid) = utils.createSharedParameterForWindows(doc, app, log);
+            ESguid = utils.createDataStorageWindow(doc, log);
 
             //Collect all windows in models or Select windows on selection
             ICollection<Element> windows = null;
@@ -234,8 +234,8 @@ namespace VoivretProject
 
                 foreach (Element window in windows)
             {
-                results = shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computer.AnalyzeShadowOnWindow(results);
+                results = shadow_computation.ComputeShadowOnWindow(doc, window, sun_dir, log);
+                double sfa = shadow_computation.AnalyzeShadowOnWindow(results);
 
                 using (Transaction t = new Transaction(doc))
                 {
@@ -249,8 +249,8 @@ namespace VoivretProject
                     try
                     {
 
-                        win_ref_display = shadow_computer.DisplayShadow(doc,results, log);
-                        shadow_computer.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
+                        win_ref_display = shadow_computation.DisplayShadow(doc,results, log);
+                        utils.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
                         all_ref_display.AddRange(win_ref_display);
 
                     }

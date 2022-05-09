@@ -1,26 +1,17 @@
 ﻿namespace shadow_library2
 {
     using System;
-    using System.IO;
     using System.Collections.Generic;
     using System.Linq;
-    using System.Reflection;
     using System.Diagnostics;
-    //using System.Maths;
-    using System.Text;
-    using System.Threading.Tasks;
-    using Autodesk.Revit.Attributes;
+  
     using Autodesk.Revit.DB;
-    using Autodesk.Revit.UI;
-    using Autodesk.Revit.ApplicationServices;
-    //using Autodesk.Revit.Creation;
-    using Autodesk.Revit.DB.Architecture;
-    using Autodesk.Revit.DB.ExtensibleStorage;
+   
+    
 
     public class shadow_computation
     {
 
-       
         public enum Shadow_Configuration
         {
             notExposed,
@@ -36,137 +27,7 @@
             undefined
         }
 
-        class XyzEqualityComparer : IEqualityComparer<XYZ>
-        {
-            public bool Equals(XYZ p, XYZ q)
-            {
-                return p.IsAlmostEqualTo(q);
-            }
-
-            public int GetHashCode(XYZ p)
-            {
-                return p.ToString().GetHashCode();
-            }
-        }
-
-        public (bool, Guid) createSharedParameterForWindows(Document doc, Application app, List<string> log)
-        {
-
-            DefinitionFile spFile = app.OpenSharedParameterFile();
-            log.Add(" Number of definition groups  " + spFile.Groups.Count());
-
-            DefinitionGroup dgcanopia = spFile.Groups.get_Item("CANOPIA");
-            if (dgcanopia != null)
-            {
-                log.Add(" Defintion group canopia found !!! ");
-            }
-            else
-            {
-                log.Add(" CANOPIA group must be created ");
-                dgcanopia = spFile.Groups.Create("CANOPIA");
-            }
-            // shadow fraction area
-            Definition sfadef = dgcanopia.Definitions.get_Item("shadowFractionArea");
-            if (sfadef != null)
-            {
-                log.Add(" ------Defintion SFA  found !!! ");
-            }
-            else
-            {
-                log.Add(" ------SFA Definition must be created ");
-                ExternalDefinitionCreationOptions defopt = new ExternalDefinitionCreationOptions("shadowFractionArea", SpecTypeId.Number);
-                defopt.UserModifiable = false;//only the API can modify it
-                defopt.HideWhenNoValue = true;
-                defopt.Description = "Fraction of shadowed glass surface for direct sunlight only";
-                using (Transaction t = new Transaction(doc))
-                {
-                    t.Start("SFA shared parameter creation");
-                    sfadef = dgcanopia.Definitions.Create(defopt);
-                    t.Commit();
-                }
-
-            }
-            ExternalDefinition sfadefex = sfadef as ExternalDefinition;
-
-            Category cat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows);
-            CategorySet catSet = app.Create.NewCategorySet();
-            catSet.Insert(cat);
-            InstanceBinding instanceBinding = app.Create.NewInstanceBinding(catSet);
-
-
-            // Get the BingdingMap of current document.
-            BindingMap bindingMap = doc.ParameterBindings;
-            bool instanceBindOK = false;
-            using (Transaction t = new Transaction(doc))
-            {
-                t.Start("SFA binding");
-                instanceBindOK = bindingMap.Insert(sfadef, instanceBinding);
-                t.Commit();
-            }
-
-            return (instanceBindOK, sfadefex.GUID);
-
-        }
-
-        public Guid createDataStorageWindow(Document doc, List<string> log)
-        {
-            // Storage of the shadow element ID in order to hide/show them or removing
-
-            const string windowSchemaName = "ShadowDataOnWindows";
-            Schema windowdataschema = null;
-            foreach (Schema schem in Schema.ListSchemas())
-            {
-                log.Add(schem.SchemaName);
-                if (schem.SchemaName == windowSchemaName)
-                {
-                    windowdataschema = schem;
-                    //log.Add(" schema found");
-                    break;
-                }
-            }
-            if (windowdataschema != null)
-            {
-                return windowdataschema.GUID;
-            }
-
-            Transaction createSchemaAndStoreData = new Transaction( doc, "tCreateAndStore");
-
-            createSchemaAndStoreData.Start();
-            SchemaBuilder schemaBuilder =
-                    new SchemaBuilder(new Guid("f9d81b89-a1bc-423c-9a29-7ce446ceea25"));
-            schemaBuilder.SetReadAccessLevel(AccessLevel.Public); 
-            schemaBuilder.SetWriteAccessLevel(AccessLevel.Public); 
-            schemaBuilder.SetSchemaName("ShadowDataOnWindows");
-            // create a field to store an XYZ
-            FieldBuilder fieldBuilder =
-                    schemaBuilder.AddArrayField("ShapeId", typeof(ElementId));
-           // fieldBuilder.SetUnitType(UnitType.UT_Length);
-            fieldBuilder.SetDocumentation("IDs of the element representing shadow/light surface in revit model.");
-           
-
-            Schema schema = schemaBuilder.Finish(); // register the Schema objectwxwx
-            
-            createSchemaAndStoreData.Commit();
-            log.Add("    Creation of EXStorage achevied ");
-
-            return schema.GUID;
-        }
-
-        public void storeDataOnWindow(Document doc, Element element, IList<ElementId> ids, Guid guid, List<string> log)
-        {
-  
-                Schema schema = Schema.Lookup(guid);
-                Entity entity = new Entity(schema);
-                Field ShapeId = schema.GetField("ShapeId");
-                // set the value for this entity
-                entity.Set(ShapeId, ids );
-                element.SetEntity(entity);
-                //log.Add("    data stored ");
-
-        }
-
-
-        public List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWindow(Document doc, Element element, XYZ sunDirection, List<String> log)
+        public static List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWindow(Document doc, Element element, XYZ sunDirection, List<String> log)
         {
             List<Face> glassFaces;
             List<Solid> glassSolids;
@@ -177,7 +38,8 @@
             XYZ true_normal;
             List<(Face, Face, Shadow_Configuration, Computation_status)> temp_results = new List<(Face, Face, Shadow_Configuration, Computation_status)>();
 
-            List<Solid> shadow_candidates;
+            List<Solid> shadow_candidates_solid;
+            List<ElementId> shadow_candidates_id;
 
             Shadow_Configuration config;
             Computation_status status;
@@ -206,10 +68,10 @@
                 else
                 {
                     //log.Add(" Number of cached element " + cached_solids.Count);
-                    (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, gface, -sunDirection,5,5,0, ref log);
+                    (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, gface, -sunDirection,5,5,0, ref log);
 
                     // No shadow candidates --> Full light / No shadow
-                    if (shadow_candidates.Count() == 0)
+                    if (shadow_candidates_solid.Count() == 0)
                     {
                         sface = null;
                         config = Shadow_Configuration.noShadow;
@@ -224,7 +86,7 @@
                             //transaction.Start();
                             //shadow_face = ComputeShadow(doc, face, shadow_candidates, extrusion_dir3,proximity_max*1.2, transaction, log);
                             //shadow_face = ComputeShadowByfaceunionfallback(doc, gface, shadow_candidates, extrusion_dir3, proximity_max * 1.2, transaction, log);
-                            sface = ProjectShadowByfaceunion(doc, gsolid, gface, shadow_candidates, -sunDirection, proximity_max * 1.2, log);
+                            sface = ProjectShadowByfaceunion(doc, gsolid, gface, shadow_candidates_solid, -sunDirection, proximity_max * 1.2, log);
 
                             //transaction.Commit();
 
@@ -251,13 +113,14 @@
             return temp_results;
         }
 
-        public List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWall(Document doc, Face roomface,Solid wallportion, XYZ sun_dir, List<String> log)
+        public static List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWall(Document doc, Face roomface,Solid wallportion, XYZ sun_dir, ref List<String> log)
         {
             
             List<(Face, Face, Shadow_Configuration, Computation_status)> results = new List<(Face, Face, Shadow_Configuration, Computation_status)>();
 
-            List<Solid> shadow_candidates;
-
+            List<Solid> shadow_candidates_solid;
+            List<ElementId> shadow_candidates_id;
+            
             Shadow_Configuration config;
             Computation_status status;
 
@@ -268,11 +131,6 @@
             Face exposedface = null;
             
             Face sface = null;
-            Solid shadow = null;
-            Solid light = null;
-            Solid s = null;
-
-
 
             //s = GeometryCreationUtilities.CreateExtrusionGeometry(roomface.GetEdgesAsCurveLoops(), facenormal, wallWidth);
 
@@ -295,11 +153,18 @@
             }
 
 
-            (shadow_candidates, proximity_max) = GetPossibleShadowingSolids(doc, exposedface, -sun_dir,10,10,30, ref log);
+            (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, exposedface, -sun_dir,10,10,0, ref log);
 
-            log.Add(" Number of shadow candidates " + shadow_candidates.Count());
+            log.Add(shadow_candidates_id.Count()+ " Shadow candidates elements represented by " + shadow_candidates_solid.Count()+ " solids ");
+            foreach(ElementId id in shadow_candidates_id)
+            {
+                log.Add("   Element Id "+id.IntegerValue+ " "+doc.GetElement(id).Name.ToString());
+            }
 
-            if (shadow_candidates.Count() == 0)
+
+            
+
+            if (shadow_candidates_solid.Count() == 0)
             {
                 sface = null;
                 config = Shadow_Configuration.noShadow;
@@ -310,7 +175,7 @@
             }
 
 
-            sface = ProjectShadowByfaceunion(doc, wallportion, exposedface, shadow_candidates, -sun_dir, proximity_max * 1.2,  log);
+            sface = ProjectShadowByfaceunion(doc, wallportion, exposedface, shadow_candidates_solid, -sun_dir, proximity_max * 1.2,  log);
 
 
             if (sface != null)
@@ -332,7 +197,7 @@
         }
 
 
-        public double AnalyzeShadowOnWindow(List<(Face, Face, Shadow_Configuration, Computation_status)> shadow_window)
+        public static double AnalyzeShadowOnWindow(List<(Face, Face, Shadow_Configuration, Computation_status)> shadow_window)
         {
             Face gface, sface;
             Shadow_Configuration config;
@@ -384,184 +249,8 @@
 
             return sfa;
         }
-        public XYZ GetSunDirection(View view)
-        {
-            var doc = view.Document;
-
-            // Get sun and shadow settings from the 3D View
-
-            var sunSettings
-                = view.SunAndShadowSettings;
-
-            // Set the initial direction of the sun 
-            // at ground level (like sunrise level)
-
-            var initialDirection = XYZ.BasisY;
-
-            // Get the altitude of the sun from the sun settings
-
-            var altitude = sunSettings.GetFrameAltitude(
-                sunSettings.ActiveFrame);
-
-            // Create a transform along the X axis 
-            // based on the altitude of the sun
-
-            var altitudeRotation = Transform
-                .CreateRotation(XYZ.BasisX, altitude);
-
-            // Create a rotation vector for the direction 
-            // of the altitude of the sun
-
-            var altitudeDirection = altitudeRotation
-                .OfVector(initialDirection);
-
-            // Get the azimuth from the sun settings of the scene
-
-            var azimuth = sunSettings.GetFrameAzimuth(
-                sunSettings.ActiveFrame);
-
-            // Correct the value of the actual azimuth with true north
-
-            // Get the true north angle of the project
-
-            var projectInfoElement
-                = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_ProjectBasePoint)
-                    .FirstElement();
-
-            var bipAtn
-                = BuiltInParameter.BASEPOINT_ANGLETON_PARAM;
-
-            var patn = projectInfoElement.get_Parameter(
-                bipAtn);
-
-            var trueNorthAngle = patn.AsDouble();
-
-            // Add the true north angle to the azimuth
-
-            var actualAzimuth = 2 * Math.PI - azimuth + trueNorthAngle;
-
-            // Create a rotation vector around the Z axis
-
-            var azimuthRotation = Transform
-                .CreateRotation(XYZ.BasisZ, actualAzimuth);
-
-            // Finally, calculate the direction of the sun
-
-            var sunDirection = azimuthRotation.OfVector(
-                altitudeDirection);
-
-            // https://github.com/jeremytammik/the_building_coder_samples/issues/14
-            // The resulting sun vector is pointing from the 
-            // ground towards the sun and not from the sun 
-            // towards the ground. I recommend reversing the 
-            // vector at the end before it is returned so it 
-            // points in the same direction as the sun rays.
-
-            return -sunDirection;
-        }
-        public List<string> GetMaterials(GeometryElement geo, Document doc)
-        {
-            List<string> materials = new List<string>();
-            foreach (GeometryObject o in geo)
-            {
-                if (o is Solid)
-                {
-                    Solid solid = o as Solid;
-                    foreach (Face face in solid.Faces)
-                    {
-                        string s = doc.GetElement(face.MaterialElementId).Name;
-                        materials.Add(s);
-                    }
-                }
-                else if (o is GeometryInstance)
-                {
-                    GeometryInstance i = o as GeometryInstance;
-                    materials.AddRange(GetMaterials(
-                      i.SymbolGeometry, doc));
-                }
-            }
-            return materials;
-        }
-
-        public List<Solid> GetSolids(Element element, List<string> log)
-        {
-            Options options = new Options();
-            options.ComputeReferences = true;
-
-            List<Solid> solids = new List<Solid>();
-
-            if (element != null)
-            {
-                //log.Add("Element name : " + element.Name);
-                //log.Add("Element type : " + element.GetType());
-
-                GeometryElement geoElement = element.get_Geometry(options);
-                //log.Add("       Intersecting element =  " + el.Id + "  Name " + el.Name);
-                //log.Add("  geo element ? " + geoElement.GetType());
-
-                if (geoElement != null)
-                {
-
-                    foreach (GeometryObject geoobj in geoElement)
-                    {
-                        //log.Add("       Type of geometric object  of " + geoobj.GetType());
-                        //log.Add("       Geometry instance  of " + typeof(Solid));
-
-                        if (geoobj.GetType() == typeof(Solid))
-                        {
-                            //log.Add("       ---> Solid ");
-                            solids.Add(geoobj as Solid);
-
-                        }
-                        else if (geoobj.GetType() == typeof(GeometryInstance))
-                        {
-                            GeometryInstance instance = geoobj as GeometryInstance;
-                            //log.Add("       ---> GeometryInstance ");
-                            if (instance != null)
-                            {
-
-                                GeometryElement instanceGeometryElement = instance.GetInstanceGeometry();
-
-                                foreach (GeometryObject o in instanceGeometryElement)
-                                {
-                                    //log.Add("       type  "+ o.GetType());
-                                    Solid sol = o as Solid;
-
-                                    if (sol != null)
-                                    {
-                                        solids.Add(sol);
-                                        //log.Add(" Solid volume = " + sol.Volume);
-                                    }
-                                    else
-                                    {
-                                        //log.Add("           Casting intersecting element to solid fail");
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                //log.Add("       Casting to geometry instance fail ");
-                            }
-                        }
-                        else
-                        {
-                            //log.Add("       --->UNKnown ");
-                        }
-
-                    }
-                }
-                else
-                {
-                    // log.Add("           Extracting intersecting geoelement fail");
-                }
-
-            }
-
-            return solids;
-        }
-
-        public (List<Solid>, List<Face>, XYZ) GetGlassSurfacesAndSolids(Document doc, Element window, List<string> log)
+       
+        public static (List<Solid>, List<Face>, XYZ) GetGlassSurfacesAndSolids(Document doc, Element window, List<string> log)
         {
             //Dictionary<ElementId,Face> faces = new Dictionary<ElementId, Face>();
             List<Face> facesToBeExtruded = new List<Face>();
@@ -723,7 +412,7 @@
 
         }
 
-        public (List<Solid>, double) GetPossibleShadowingSolids(Document doc, Face face, XYZ sun_dir, int Nu, int Nv,int Nw, ref List<string> log)
+        public static  (List<Solid>, double, List<ElementId>) GetPossibleShadowingSolids(Document doc, Face face, XYZ sun_dir, int Nu, int Nv,int Nw, ref List<string> log)
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc);
             Func<View3D, bool> isNotTemplate = v3 => !(v3.IsTemplate);
@@ -750,10 +439,10 @@
             double dv = (bbuv.Max[1] - bbuv.Min[1]) / (Nv - 1);
             Stopwatch sw = new Stopwatch();
             Stopwatch swmacro = new Stopwatch();
-            TimeSpan ts;
-            string elapsedTime;
-
+            
             List<ReferenceWithContext> referenceWithContexts2 = new List<ReferenceWithContext>();
+            //List<ReferenceWithContext> temp = new List<ReferenceWithContext>();
+
             swmacro.Restart();
             for (int i = 0; i < Nu; ++i)
             {
@@ -768,9 +457,10 @@
 
             // search for candidates with rays parallels to the surface
             // usefull for wall (large surface and small shadowing devices when projected in surface plan)
-            if( Nw>0)
+            if( Nw==0)
             {
-
+                log.Add("       NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO ");
+                /*
                 Transform t = face.ComputeDerivatives(new UV(0.0, 0.0));
                 XYZ Zaxis = new XYZ(0.0, 0.0, 1.0);
                 UV lowest = null;
@@ -820,16 +510,13 @@
                 {
                     log.Add(" No Face Axis oriented along Z");
                 }
-
+                */
 
             }
 
-            swmacro.Stop();
-            ts = swmacro.Elapsed;
-            elapsedTime = String.Format("---- ray shooting     : {0:N5}  ms", ts.TotalMilliseconds);
-            //log.Add(elapsedTime);
+           
 
-            swmacro.Restart();
+
             IList<ElementId> elementIds = new List<ElementId>();
             double proximity_max = 0.0;
             foreach (ReferenceWithContext rc in referenceWithContexts2)
@@ -850,33 +537,25 @@
                 log.Add("           No intersecting element - full ligth  ");
                 //continue;
             }*/
-            swmacro.Stop();
-            ts = swmacro.Elapsed;
-            elapsedTime = String.Format("---- Data cleaning     : {0:N5}  ms", ts.TotalMilliseconds);
-            //log.Add(elapsedTime);
+           
 
-            swmacro.Restart();
+    
             List<Solid> shadowing_solids = new List<Solid>();
 
             foreach (ElementId elementId in elementIds)
             {
 
                 Element el = doc.GetElement(elementId);
-                log.Add("      Candidates " + el.Id + " " + el.Name);
-
-                shadowing_solids.AddRange(GetSolids(el, log));
+                shadowing_solids.AddRange(utils.GetSolids(el, log));
 
             }
 
-
-            swmacro.Stop();
-            ts = swmacro.Elapsed;
-            elapsedTime = String.Format("----extracting geom     : {0:N5}  ms     ", ts.TotalMilliseconds);
-            return (shadowing_solids, proximity_max);
+                        
+            return (shadowing_solids, proximity_max, elementIds.ToList());
         }
 
 
-        public Face ProjectShadowByfaceunion(Document doc, Solid gsolid, Face gface, List<Solid> Candidates, XYZ extrusion_dir, double extrusion_dist, List<string> log)
+        public static Face ProjectShadowByfaceunion(Document doc, Solid gsolid, Face gface, List<Solid> Candidates, XYZ extrusion_dir, double extrusion_dist, List<string> log)
         {
             //FamilyItemFactory factory = doc.FamilyCreate;
             //Form extruded = doc.FamilyCreate.NewExtrusionForm(true, ra, wall_normal.Multiply(10.0));
@@ -957,7 +636,7 @@
                     intersection = BooleanOperationsUtils.ExecuteBooleanOperation(s, shad, BooleanOperationsType.Intersect);
 
                 }
-                catch (Exception e)
+                catch 
                 {
                     log.Add("           Bolean Intersection failled (exception) ");
                 }
@@ -969,11 +648,11 @@
                 {
                     inter_list.Add(intersection);
                     //log.Add(" Solid volume " + shad.Volume + " Intersection volume " + intersection.Volume);
-                    //log.Add("           Bolean Intersection =  " + intersection.Volume);
+                    log.Add("           Bolean Intersection =  " + intersection.Volume);
                 }
                 else
                 {
-                    //log.Add("           Bolean Intersection Failed (return null)  ");
+                    log.Add("           Bolean Intersection Failed (return null)  ");
                 }
 
             }
@@ -996,7 +675,7 @@
                 {
                     BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(union, inter_list[i], BooleanOperationsType.Union);
                 }
-                catch (Exception e)
+                catch 
                 {
                     log.Add("           Union partial faillure ");
                 }
@@ -1165,7 +844,7 @@
                     BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(union, extrudedfaces[i], BooleanOperationsType.Union);
                     //log.Add("           Union volume " + union.Volume);
                 }
-                catch (Exception e)
+                catch 
                 {
                     log.Add("            Second Union partial faillure ");
                 }
@@ -1177,7 +856,7 @@
                 intersection = BooleanOperationsUtils.ExecuteBooleanOperation(union, gsolid, BooleanOperationsType.Intersect);
 
             }
-            catch (Exception ex)
+            catch 
             {
 
                 log.Add("           Second  intersection failled");
@@ -1204,7 +883,7 @@
 
         }
 
-        public List<ElementId> DisplayShadow(Document doc, List<(Face, Face, Shadow_Configuration, Computation_status)> result,List<string> log)
+        public static List<ElementId> DisplayShadow(Document doc, List<(Face, Face, Shadow_Configuration, Computation_status)> result,List<string> log)
         {
             // Extrude a little bit the surface and show it as a solid volume
             Face glass_face;

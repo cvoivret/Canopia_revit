@@ -9,7 +9,6 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.ApplicationServices;
 using shadow_library2;
-using VoivretProject;
 
 namespace CANOPIA_GUI
 {

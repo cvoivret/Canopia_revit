@@ -5,7 +5,7 @@ using Autodesk.Revit.DB.ExtensibleStorage;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Analysis;
-using shadow_library2;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +14,9 @@ using System.Reflection;
 using System.Text;
 
 using System.Linq;
+
+using shadow_library2;
+//using shadow_library2.utils;
 
 
 namespace CANOPIA_NOGUI
@@ -48,13 +51,13 @@ namespace CANOPIA_NOGUI
 
             SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
             XYZ sun_dir;
-            sun_dir = shadow_computer.GetSunDirection(view);
+            sun_dir = utils.GetSunDirection(view);
 
             // create a shared parameter to attach shadow analysis result to each window
             bool spcreationOK;
             Guid sfaguid, ESguid;
-            (spcreationOK, sfaguid) = shadow_computer.createSharedParameterForWindows(doc, app, log);
-            ESguid = shadow_computer.createDataStorageWindow(doc, log);
+            (spcreationOK, sfaguid) = utils.createSharedParameterForWindows(doc, app, log);
+            ESguid = utils.createDataStorageWindow(doc, log);
             //ESguid = shadow_computer.ESGuid;
             //Collect windows
             Options options = new Options();
@@ -67,8 +70,8 @@ namespace CANOPIA_NOGUI
 
             foreach (Element window in windows)
             {
-                results = shadow_computer.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computer.AnalyzeShadowOnWindow(results);
+                results = shadow_computation.ComputeShadowOnWindow(doc, window, sun_dir, log);
+                double sfa = shadow_computation.AnalyzeShadowOnWindow(results);
 
                 using (Transaction t = new Transaction(doc))
                 {
@@ -81,8 +84,8 @@ namespace CANOPIA_NOGUI
                     transaction.Start();
                     try
                     {
-                        win_ref_display = shadow_computer.DisplayShadow(doc, results, log);
-                        shadow_computer.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
+                        win_ref_display = shadow_computation.DisplayShadow(doc, results, log);
+                        utils.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
                         all_ref_display.AddRange(win_ref_display);
 
                     }
@@ -122,7 +125,7 @@ namespace CANOPIA_NOGUI
                 {
                     IList<ElementId> temp = entity.Get<IList<ElementId>>("ShapeId");
                     //view.HideElements(temp);
-                    bool hidden = false;
+                    
                     foreach (ElementId elementid in temp)
                     {
                         Element el = doc.GetElement(elementid);
@@ -177,7 +180,7 @@ namespace CANOPIA_NOGUI
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "roomlog.log");
+               "wall_shadow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
@@ -193,9 +196,9 @@ namespace CANOPIA_NOGUI
             shadow_computation shadow_computer = new shadow_computation();
             SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
             XYZ sun_dir;
-            sun_dir = shadow_computer.GetSunDirection(view);
+            sun_dir = utils.GetSunDirection(view);
 
-            List<Solid> shadow_candidates;
+            //List<Solid> shadow_candidates;
             double prox_max = 0.0;
 
             
@@ -249,7 +252,7 @@ namespace CANOPIA_NOGUI
                 {
                     IList<SpatialElementBoundarySubface> boundaryFaceInfo
                       = georesults.GetBoundaryFaceInfo(face);
-                    log.Add(" Number of subsurface " + boundaryFaceInfo.Count());
+                    //log.Add(" Number of subsurface " + boundaryFaceInfo.Count());
 
                     foreach (var spatialSubFace in boundaryFaceInfo)
                     {
@@ -258,7 +261,7 @@ namespace CANOPIA_NOGUI
                         {
                             continue;
                         }
-                        log.Add(" spatialsubface typt  " + SubfaceType.Side);
+                       // log.Add(" spatialsubface typt  " + SubfaceType.Side);
 
                         //SpatialBoundaryCache spatialData
                         // = new SpatialBoundaryCache();
@@ -285,7 +288,7 @@ namespace CANOPIA_NOGUI
                         wallportion = GeometryCreationUtilities.CreateExtrusionGeometry(face.GetEdgesAsCurveLoops(), facenormal, 1.0001*wall.Width);
                         log.Add(" Wall epaisseur " + wall.Width);
 
-                        results = shadow_computer.ComputeShadowOnWall(doc, face, wallportion, sun_dir, log); 
+                        results = shadow_computation.ComputeShadowOnWall(doc, face, wallportion, sun_dir, ref log); 
                         resultslist.Add(results);
 
                         
@@ -304,7 +307,7 @@ namespace CANOPIA_NOGUI
                     transaction.Start();
                     try
                     {
-                        win_ref_display = shadow_computer.DisplayShadow(doc, res, log);
+                        win_ref_display = shadow_computation.DisplayShadow(doc, res, log);
                     }
                     catch (Exception e)
                     {
