@@ -186,10 +186,9 @@ namespace canopia_nogui
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
-            Dictionary<ElementId, List<(Face, Room)>> exterior;
-            exterior = utils.GetExteriorWallPortion(doc, true, ref log);
+            utils.GetExteriorWallPortion(doc, true, ref log);
 
-            
+
             List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
 
             List< List < (Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status) > > resultslist = 

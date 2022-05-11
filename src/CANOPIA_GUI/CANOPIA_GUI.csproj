@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
@@ -7,10 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\shadow_library2\shadow_library2.csproj" />
+    <ProjectReference Include="..\canopia_lib\canopia_lib.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="canopia_lib">
+      <HintPath>..\canopia_lib\bin\Debug\net4.8\canopia_lib.dll</HintPath>
+    </Reference>
     <Reference Include="RevitAPI">
       <HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
     </Reference>

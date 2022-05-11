@@ -11,9 +11,9 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
 using Autodesk.Revit.ApplicationServices;
 
-using shadow_library2;
+using canopia_lib;
 
-namespace VoivretProject
+namespace canopia_gui
 {
 
 

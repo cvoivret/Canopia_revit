@@ -1,4 +1,4 @@
-﻿namespace shadow_library2
+﻿namespace canopia_lib
 {
     using System;
     using System.Collections.Generic;
@@ -149,6 +149,7 @@
                 config = Shadow_Configuration.notExposed;
                 status = Computation_status.success;
                 results.Add((exposedface, sface, config, status));
+                log.Add(" Wall not exposed ");
                 return results;
             }
 
@@ -170,6 +171,7 @@
                 config = Shadow_Configuration.noShadow;
                 status = Computation_status.success;
                 results.Add((exposedface, sface, config, status));
+                log.Add(" Wall wihtout shadow ( full light) ");
                 return results;
 
             }
@@ -457,7 +459,7 @@
 
             // search for candidates with rays parallels to the surface
             // usefull for wall (large surface and small shadowing devices when projected in surface plan)
-            if( Nw==0)
+            if( Nw>0)
             {
                 log.Add("       NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO ");
                 /*

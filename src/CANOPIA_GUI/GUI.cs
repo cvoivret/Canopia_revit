@@ -8,15 +8,15 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.ApplicationServices;
-using shadow_library2;
+using canopia_lib;
 
-namespace CANOPIA_GUI
+namespace canopia_gui
 {
 
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     [Journaling(JournalingMode.NoCommandData)]
-    public class GUI : IExternalApplication
+    public class gui : IExternalApplication
     {
         string tab_name = " Canopia ";
         string shadow_panel_name = "Shadow Analysis";
@@ -74,7 +74,7 @@ namespace CANOPIA_GUI
             PushButtonData pushbdata = new PushButtonData("Compute shadow",
                 "Compute Shadows",
                 Assembly.GetExecutingAssembly().Location,
-                "VoivretProject.ComputeAndDisplayShadow");
+                "canopia_gui.ComputeAndDisplayShadow");
 
             PushButton button = panel.AddItem(pushbdata) as PushButton;
             button.Enabled = true;
@@ -85,7 +85,7 @@ namespace CANOPIA_GUI
             PushButtonData pushbdata2 = new PushButtonData(" Hide/show",
                "Hide/show",
                Assembly.GetExecutingAssembly().Location,
-               "VoivretProject.HideShowShadow");
+               "canopia_gui.HideShowShadow");
 
             PushButton button2 = panel.AddItem(pushbdata2) as PushButton;
             button2.Enabled = true;
@@ -94,7 +94,7 @@ namespace CANOPIA_GUI
             PushButtonData pushbdata3 = new PushButtonData(" Clear ",
                "Clear",
                Assembly.GetExecutingAssembly().Location,
-               "VoivretProject.Clear");
+               "canopia_gui.Clear");
 
             PushButton button3 = panel.AddItem(pushbdata3) as PushButton;
             button3.Enabled = true;
