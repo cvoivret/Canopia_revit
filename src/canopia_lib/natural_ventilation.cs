@@ -1,146 +1,145 @@
-﻿
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.IFC;
+
 
 namespace canopia_lib
 {
-    using System;
-    using System.IO;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Reflection;
-    using System.Diagnostics;
-    //using System.Maths;
-    using System.Text;
-    using System.Threading.Tasks;
-    using Autodesk.Revit.Attributes;
-    using Autodesk.Revit.DB;
-    using Autodesk.Revit.UI;
-    using Autodesk.Revit.ApplicationServices;
-    //using Autodesk.Revit.Creation;
-    using Autodesk.Revit.DB.Architecture;
-    using Autodesk.Revit.DB.ExtensibleStorage;
-    using Autodesk.Revit.DB.Analysis;
     public class natural_ventilation
     {
-        public static void opening_ratio(Document doc)
+        public static void openning_ratio(Document doc,ref List<String> log)
         {
-            /*
-            //Document doc = uiapp.ActiveUIDocument.Document;
-            View view = doc.ActiveView;
-            Application app = uiapp.Application;
-            Result rc;
+            // liste des murs exterieurs
+            // ouvertures dans ces murs --> fenetre
+            Dictionary<ElementId, List<(Face, Solid, Room)>> exterior_wall;
+            Wall wall = null;
+            exterior_wall = utils.GetExteriorWallPortion(doc, 0.000001, ref log);
 
-            string filename = Path.Combine(Path.GetDirectoryName(
-               Assembly.GetExecutingAssembly().Location),
-               "natural_ventilation.log");
-            List<string> log = new List<string>();
+            ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Windows);
 
-            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
-            File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
-                      
+            XYZ cutDir = null;
+            FamilyInstance fi;
+            bool cutout_succes = false;
+            Solid wallSolid = null;
+            List<Solid> openingSolids = new List<Solid>();
+            //List<Solid> solids2 = new List<Solid>();
+            Dictionary<ElementId,( Face, List< Face>)> results = new Dictionary<ElementId,(Face, List<Face>)>();
 
-            Solid wallportion = null;
-
-            SpatialElementBoundaryOptions sebOptions
-              = new SpatialElementBoundaryOptions
-              {
-                  SpatialElementBoundaryLocation
-                  = SpatialElementBoundaryLocation.Finish
-              };
-
-            IEnumerable<Element> rooms
-              = new FilteredElementCollector(doc)
-                .OfClass(typeof(SpatialElement))
-                .Where<Element>(e => (e is Room));
-
-
-
-            BuildingEnvelopeAnalyzerOptions beao = new BuildingEnvelopeAnalyzerOptions();
-            BuildingEnvelopeAnalyzer bea = BuildingEnvelopeAnalyzer.Create(doc, beao);
-            IList<LinkElementId> outside = bea.GetBoundingElements();
-            IList<ElementId> outsideelements = new List<ElementId>();
-
-            foreach (LinkElementId lid in outside)
+            foreach (ElementId id_w in exterior_wall.Keys)
             {
-                outsideelements.Add(lid.HostElementId);
-                //log.Add(" host id " + lid.HostElementId + " linekd id " + lid.LinkedElementId);
-                //log.Add(outsideelements.Count().ToString());
+                log.Add("=========== WALL ID " + id_w + "  name " + doc.GetElement(id_w).Name);
+                wall = doc.GetElement(id_w) as Wall;
+                IList<ElementId> dependentIds =wall.GetDependentElements(filter);
+                List<ElementId> matchedId = new List<ElementId>();
+                List<Solid> matchedSolid = new List<Solid>();
+                List<Face> matchedFaces = new List<Face>();
+
+                log.Add("       Number of dependent element in wall " + dependentIds.Count());
+                if(dependentIds.Count()==0)
+                {
+                    continue;
+                }
+                
+                List<Solid> wallSolids = utils.GetSolids(wall,false, log);
+                wallSolid = wallSolids[0];
+                
+
+                foreach ((Face, Solid, Room) temp in exterior_wall[id_w])
+                {
+                    
+                    Solid openingSolid = BooleanOperationsUtils.ExecuteBooleanOperation(temp.Item2, wallSolid, BooleanOperationsType.Difference);
+                    
+                    IList<Solid> split = SolidUtils.SplitVolumes(openingSolid);
+                    
+                    foreach (Solid spl in split)
+                    {
+                        
+                        ElementIntersectsSolidFilter solidfilter = new ElementIntersectsSolidFilter(spl);
+                        
+                        foreach (ElementId elementid in dependentIds)
+                        {
+                            if(solidfilter.PassesFilter(doc, elementid) )
+                            {
+                                matchedSolid.Add(spl);
+                                matchedId.Add(elementid);
+                                
+                                Face external = null;
+                                double maxArea = 0.0;
+                                foreach( Face face in spl.Faces)
+                                {
+                                    XYZ normal = temp.Item1.ComputeNormal(new UV(0.5, 0.5));
+                                    if (normal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))) & face.Area > maxArea)
+                                    {
+                                        external = face;
+                                        
+                                    }
+                                }
+                                matchedFaces.Add(external);
+                                log.Add(" MAx Surface area " + external.Area);
+                                log.Add(" Ratio "+ external.Area/temp.Item1.Area);
+
+                            }
+                            
+                        }
+                    }
+
+                    
+                }
+                openingSolids.AddRange(matchedSolid);
+
+
+
+
             }
 
-            foreach (Room room in rooms)
+            FilteredElementCollector fillPatternElementFilter = new FilteredElementCollector(doc);
+            fillPatternElementFilter.OfClass(typeof(FillPatternElement));
+            FillPatternElement fillPatternElement = fillPatternElementFilter.First(f => (f as FillPatternElement).GetFillPattern().IsSolidFill) as FillPatternElement;
+
+            OverrideGraphicSettings ogss = new OverrideGraphicSettings();
+            ogss.SetSurfaceForegroundPatternId(fillPatternElement.Id);
+            Color shadowColor = new Color(121, 44, 222);
+            ogss.SetProjectionLineColor(shadowColor);
+            ogss.SetSurfaceForegroundPatternColor(shadowColor);
+            ogss.SetCutForegroundPatternColor(shadowColor);
+            DirectShape ds = null;
+
+            OverrideGraphicSettings ogs = new OverrideGraphicSettings();
+            ogs.SetSurfaceForegroundPatternId(fillPatternElement.Id);
+            Color color = new Color(222, 1, 1);
+            ogs.SetProjectionLineColor(color);
+            ogs.SetSurfaceForegroundPatternColor(color);
+            ogs.SetCutForegroundPatternColor(color);
+            
+            log.Add(" Number of solid to display " + openingSolids.Count());    
+            
+            using (Transaction t = new Transaction(doc))
             {
-                if (room == null) continue;
-                if (room.Location == null) continue;
-                if (room.Area.Equals(0)) continue;
-                log.Add(" \n ");
-                log.Add("=== Room found : " + room.Name);
-                Autodesk.Revit.DB.SpatialElementGeometryCalculator calc =
-                  new Autodesk.Revit.DB.SpatialElementGeometryCalculator(
-                    doc, sebOptions);
-
-                SpatialElementGeometryResults georesults
-                  = calc.CalculateSpatialElementGeometry(
-                    room);
-
-                Solid roomSolid = georesults.GetGeometry();
-
-                foreach (Face face in georesults.GetGeometry().Faces)
+                t.Start(" opening");
+                foreach (Solid ss in openingSolids)
                 {
-                    IList<SpatialElementBoundarySubface> boundaryFaceInfo
-                      = georesults.GetBoundaryFaceInfo(face);
-                    //log.Add(" Number of subsurface " + boundaryFaceInfo.Count());
+                    ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                    ds.ApplicationId = "Application id";
+                    ds.ApplicationDataId = "Geometry object id";
+                    ds.SetShape(new GeometryObject[] { ss });
+                    doc.ActiveView.SetElementOverrides(ds.Id, ogss);
+                   
 
-                    foreach (var spatialSubFace in boundaryFaceInfo)
-                    {
-                        if (spatialSubFace.SubfaceType
-                          != SubfaceType.Side)
-                        {
-                            continue;
-                        }
-                        // log.Add(" spatialsubface typt  " + SubfaceType.Side);
-
-                        //SpatialBoundaryCache spatialData
-                        // = new SpatialBoundaryCache();
-
-                        Wall wall = doc.GetElement(spatialSubFace
-                          .SpatialBoundaryElement.HostElementId)
-                            as Wall;
-
-                        if (wall == null)
-                        {
-                            continue;
-                        }
-
-
-                        if (!outsideelements.Contains(wall.Id))
-                        {
-                            log.Add("       Inside wall ");
-                            continue;
-                        }
-                        //extrude room face to outisde limit of outside wall
-                        log.Add(" Hosting wall  " + wall.Id);
-                        XYZ facenormal = face.ComputeNormal(new UV(.5, .5));
-                        log.Add("  facenormal " + facenormal.ToString());
-                        log.Add("  wallnormal " + wall.Orientation.ToString());
-                        log.Add("  wall function " + wall.WallType.Function.ToString());
-
-
-                        wallportion = GeometryCreationUtilities.CreateExtrusionGeometry(face.GetEdgesAsCurveLoops(), facenormal, 1.0001 * wall.Width);
-                        log.Add(" Wall epaisseur " + wall.Width);
-
-                        results = shadow_computation.ComputeShadowOnWall(doc, face, wallportion, sun_dir, ref log);
-                        resultslist.Add(results);
+                }
+                t.Commit();
+            }
 
 
 
 
-                    } // end foreach subface from which room bounding elements are derived
-
-                } // end foreach Face
-
-            } // end foreach Room
 
 
-            return;*/
         }
     }
 }

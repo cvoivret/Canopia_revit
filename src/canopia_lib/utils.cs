@@ -1,25 +1,16 @@
-﻿namespace canopia_lib
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.ApplicationServices;
+using Autodesk.Revit.DB.Architecture;
+using Autodesk.Revit.DB.ExtensibleStorage;
+using Autodesk.Revit.DB.Analysis;
+
+namespace canopia_lib
 {
-
-    using System;
-    using System.IO;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Reflection;
-    using System.Diagnostics;
-    //using System.Maths;
-    using System.Text;
-    using System.Threading.Tasks;
-    using Autodesk.Revit.Attributes;
-    using Autodesk.Revit.DB;
-    using Autodesk.Revit.UI;
-    using Autodesk.Revit.ApplicationServices;
-    //using Autodesk.Revit.Creation;
-    using Autodesk.Revit.DB.Architecture;
-    using Autodesk.Revit.DB.ExtensibleStorage;
-    using Autodesk.Revit.DB.Analysis;
-
-
 
     public class utils
     {
@@ -246,7 +237,7 @@
             return materials;
         }
 
-        public static List<Solid> GetSolids(Element element, List<string> log)
+        public static List<Solid> GetSolids(Element element,bool union, List<string> log)
         {
             Options options = new Options();
             options.ComputeReferences = true;
@@ -273,7 +264,14 @@
                         if (geoobj.GetType() == typeof(Solid))
                         {
                             //log.Add("       ---> Solid ");
-                            solids.Add(geoobj as Solid);
+                            Solid sol = geoobj as Solid;
+                            if (sol != null & sol.Volume > 0.000001)
+                            {
+                                solids.Add(sol);
+                               
+
+
+                            }
 
                         }
                         else if (geoobj.GetType() == typeof(GeometryInstance))
@@ -290,10 +288,12 @@
                                     //log.Add("       type  "+ o.GetType());
                                     Solid sol = o as Solid;
 
-                                    if (sol != null)
+                                    if (sol != null & sol.Volume >0.000001)
                                     {
                                         solids.Add(sol);
-                                        //log.Add(" Solid volume = " + sol.Volume);
+                                        
+                                        //log.Add(" Area volume instancegeometryelement= " + sol.);
+
                                     }
                                     else
                                     {
@@ -319,15 +319,34 @@
                 }
 
             }
+            /*
+            if (union)
+            {
+                log.Add(" Number of solidsssssssss "+solids.Count);
+                if (solids.Count > 1)
+                {
+                    Solid unionSolid = SolidUtils.Clone(solids[0]);
+                    log.Add(" Solid volumes " + solids[0].Volume);
+                    for (int i = 0; i < solids.Count; i++)
+                    {
+                        log.Add(" Solid volumes " + solids[i].Volume);
+                       BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(unionSolid, solids[i], BooleanOperationsType.Union);
+                    }
+                    solids.Clear();
+                    solids.Add(unionSolid);
+                }
+                
+            }*/
 
             return solids;
         }
 
-        public  static Dictionary<ElementId, List<(Face, Room)>> GetExteriorWallPortion( Document doc,bool extrude,ref List<string> log)
+        public static Dictionary<ElementId, List<(Face, Solid, Room)>> GetExteriorWallPortion(Document doc, double offset, ref List<string> log)
         {
             Solid wallportion = null;
             Solid roomSolid = null;
-            Wall wall=null;
+            Wall wall = null;
+            Solid intersection = null;
 
             SpatialElementBoundaryOptions sebOptions
               = new SpatialElementBoundaryOptions
@@ -354,7 +373,7 @@
             foreach (LinkElementId lid in outsideId)
             {
                 outsideelements.Add(lid.HostElementId);
-                
+
             }
 
             // Build a data representation based on 
@@ -362,8 +381,8 @@
             // Face of adjacent room ( pointing outward of the room ie trough the wall)
             // Room
 
-            Dictionary<ElementId, List<(Face, Room)>> data = new Dictionary<ElementId, List<(Face, Room)>>();
-            Dictionary<ElementId, List<(Face, Room)>> data2 = new Dictionary<ElementId, List<(Face, Room)>>();
+            Dictionary<ElementId, List<(Face, Solid, Room)>> data = new Dictionary<ElementId, List<(Face, Solid, Room)>>();
+            Dictionary<ElementId, List<(Face, Solid, Room)>> data2 = new Dictionary<ElementId, List<(Face, Solid, Room)>>();
             SpatialElementGeometryCalculator calc = new SpatialElementGeometryCalculator(doc, sebOptions);
 
             foreach (Room room in rooms)
@@ -373,7 +392,7 @@
                 if (room.Area.Equals(0)) continue;
                 //log.Add(" \n ");
                 //log.Add("=== Room found : " + room.Name);
-               
+
 
                 SpatialElementGeometryResults georesults = calc.CalculateSpatialElementGeometry(room);
 
@@ -406,26 +425,28 @@
 
                         if (!outsideelements.Contains(wall.Id))
                         {
-                           // log.Add("       Inside wall ");
+                            // log.Add("       Inside wall ");
                             continue;
                         }
 
-                        if( data.ContainsKey(wall.Id))
+                        wallportion = GeometryCreationUtilities.CreateExtrusionGeometry(face.GetEdgesAsCurveLoops(),
+                                                                    face.ComputeNormal(new UV(0.5, 0.5)), wall.Width+offset);
+
+                        if (data.ContainsKey(wall.Id))
                         {
-                            //log.Add(" Key in dict");
-                            data[wall.Id].Add((face, room));
+                            data[wall.Id].Add((face, wallportion, room));
                         }
                         else
                         {
                             //log.Add(" key not in dict ");
-                            data.Add(wall.Id, new List<(Face, Room)>());
-                            data[wall.Id].Add((face, room));
+                            data.Add(wall.Id, new List<(Face, Solid, Room)>());
+                            data[wall.Id].Add((face, wallportion, room));
                         }
-                        
+
                         //log.Add(" data size " + data.Count());
                         //data.Add((wall, face, room));
 
-                                               
+
 
                     } // end foreach subface from which room bounding elements are derived
 
@@ -433,62 +454,129 @@
 
             } // end foreach Room
 
-            
-            foreach( ElementId key in data.Keys )
+
+            foreach (ElementId key in data.Keys)
             {
-                log.Add("  ------  Wall Id " + key );
+                //log.Add("  ------  Wall Id " + key);
                 wall = doc.GetElement(key) as Wall;
-                double wall_width= wall.Width;
+                double wall_width = wall.Width;
                 List<Solid> extrusions = new List<Solid>();
-                Solid intersection;
-                foreach ((Face,Room) temp in data[key])
+                
+
+                int Nwallportion = data[key].Count();
+                bool[] tokeep = new bool[Nwallportion];
+
+                for (int i = 0; i < Nwallportion; i++)
                 {
-                    //log.Add("       Face normal " + temp.Item1.ComputeNormal(new UV(0.5, 0.5)) + " Room " + temp.Item2.Name);
-                    extrusions.Add( GeometryCreationUtilities.CreateExtrusionGeometry(temp.Item1.GetEdgesAsCurveLoops(),
-                                                                    temp.Item1.ComputeNormal(new UV(0.5, 0.5)), wall_width));
+                    tokeep[i] = true;
                 }
-                bool[] toremove = new bool[extrusions.Count];
-                for (int i = 0; i < extrusions.Count; i++)
+
+                for (int i = 0; i < Nwallportion; i++)
                 {
-                    toremove[i] = false;
-                }
-                for(int i = 0; i < extrusions.Count; i++)
-                {
-                    for(int j = i+1; j < extrusions.Count;j++)
+                    for (int j = i + 1; j < Nwallportion; j++)
                     {
-                        intersection = BooleanOperationsUtils.ExecuteBooleanOperation(extrusions[i], extrusions[j], BooleanOperationsType.Intersect);
+                        //log.Add("  walls between " + data[key][i].Item3.Name + "  &  " + data[key][j].Item3.Name);
+                        intersection = BooleanOperationsUtils.ExecuteBooleanOperation(data[key][i].Item2, data[key][j].Item2, BooleanOperationsType.Intersect);
                         //log.Add(" intersection volume  "+intersection.Volume);
                         if (intersection.Volume > 0.00001)
                         {
-                            toremove[i] = true;
-                            toremove[j] = true;
+                            tokeep[i] = false;
+                            tokeep[j] = false;
                         }
-                        
+
+                    }
+
+                }
+                //log.Add(" Number of faces before screening " + data[key].Count());
+
+                List<(Face, Solid, Room)> templist = new List<(Face, Solid, Room)>();
+                for (int i = 0; i < tokeep.Count(); ++i)
+                {
+                    if (tokeep[i])
+                    {
+                        templist.Add(data[key][i]);
+
+                    }
+                }
+                if (templist.Count > 0)
+                {
+                    data2.Add(key, templist);
+                }
+                /*
+                foreach((Face, Solid, Room) temp2 in templist)
+                {
+                    log.Add(" Kept room boundary " + temp2.Item3.Name);
+                }*/
+
+                //data[key]=templist;
+
+
+            }
+            data.Clear();
+            List<(Face,Solid,Room)> temp;
+            
+            foreach (ElementId key in data2.Keys)
+            {
+                //log.Add(" WWAAAAAALLL " + key + " Nface "+ data2[key].Count());
+                temp = data2[key];
+                List<(int, int)> tomerge= new List<(int, int)>();
+                for (int i=0;i<data2[key].Count();++i)// ((Face, Solid, Room) temp in data2[key])
+                {
+                    string roomName = data2[key][i].Item3.Name;
+                    for (int j = i + 1; j < data2[key].Count(); ++j)
+                    {
+                        // prevoir le cas de plus de deux faces à fusionner
+                        if (roomName == data2[key][j].Item3.Name)
+                        {
+                            tomerge.Add((i, j));
+                            //log.Add("       Faces in the same room on the same wall --> merge");//,CultureInfo.CreateSpecificCulture("fr-FR")));
+
+                        }
                     }
                     
                 }
-                log.Add(" Number of faces before screening " + data[key].Count());
-                
-                List < (Face, Room) > templist = new List< (Face, Room) >();
-                for (int i=0;i<toremove.Count();++i)
+                /*log.Add(" Before ");
+                foreach((Face, Solid, Room) t in temp)
                 {
-                    if (  ! toremove[i] )
-                    {
-                        templist.Add(data[key][i]);
-                    }
+                    log.Add(" normal " + t.Item1.ComputeNormal(new UV(0.5,0.5))+" Volume "+ t.Item2.Volume + " Room "+ t.Item3.Name );
                 }
-                data2.Add(key, templist);
+                */
+                for( int k= tomerge.Count()-1;k>=0;k--)// (int i,int j )// in tomerge.Reverse())
+                {
+                    int i = tomerge[k].Item1;
+                    int j = tomerge[k].Item2;
+                    Solid union = BooleanOperationsUtils.ExecuteBooleanOperation(temp[i].Item2, temp[j].Item2, BooleanOperationsType.Union);
+                    XYZ normal = temp[i].Item1.ComputeNormal(new UV(0.5, 0.5));
+                    Face unionface = null;
+                    Room unionroom = temp[i].Item3 as Room;
+                    foreach( Face face in union.Faces)
+                    {
+                        if( face.ComputeNormal(new UV(0.5, 0.5)).IsAlmostEqualTo( normal) )
+                        {
+                            unionface = face;
+                            
+                        }
+                    }
+                    temp[i]=(unionface, union, unionroom);
+                    temp.RemoveAt(j);
+                     
+                }
+                /* log.Add(" After ");
+                 foreach ((Face, Solid, Room) t in temp)
+                 {
+                     log.Add(" normal " + t.Item1.ComputeNormal(new UV(0.5, 0.5)) + " Volume " + t.Item2.Volume + " Room " + t.Item3.Name);
+                 }
+                */
+                data.Add(key, temp);
 
-                //data[key]=templist;
-               
-                log.Add(" Number of faces after screening " + data2[key].Count());
-               
             }
-            return data2;
+
+
+            return data;
 
         }
 
-        
+
 
         class XyzEqualityComparer : IEqualityComparer<XYZ>
         {
@@ -503,4 +591,6 @@
             }
         }
     }
+
 }
+

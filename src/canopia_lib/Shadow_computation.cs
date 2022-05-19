@@ -4,10 +4,10 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Diagnostics;
-  
+
     using Autodesk.Revit.DB;
-   
-    
+
+
 
     public class shadow_computation
     {
@@ -68,7 +68,7 @@
                 else
                 {
                     //log.Add(" Number of cached element " + cached_solids.Count);
-                    (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, gface, -sunDirection,5,5,0, ref log);
+                    (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, gface, -sunDirection, 5, 5, 0, ref log);
 
                     // No shadow candidates --> Full light / No shadow
                     if (shadow_candidates_solid.Count() == 0)
@@ -109,18 +109,18 @@
 
 
             }
-            
+
             return temp_results;
         }
 
-        public static List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWall(Document doc, Face roomface,Solid wallportion, XYZ sun_dir, ref List<String> log)
+        public static List<(Face, Face, Shadow_Configuration, Computation_status)> ComputeShadowOnWall(Document doc, Face roomface, Solid wallportion, XYZ sun_dir, ref List<String> log)
         {
-            
+
             List<(Face, Face, Shadow_Configuration, Computation_status)> results = new List<(Face, Face, Shadow_Configuration, Computation_status)>();
 
             List<Solid> shadow_candidates_solid;
             List<ElementId> shadow_candidates_id;
-            
+
             Shadow_Configuration config;
             Computation_status status;
 
@@ -129,7 +129,7 @@
 
             XYZ facenormal = roomface.ComputeNormal(new UV(.5, .5));
             Face exposedface = null;
-            
+
             Face sface = null;
 
             //s = GeometryCreationUtilities.CreateExtrusionGeometry(roomface.GetEdgesAsCurveLoops(), facenormal, wallWidth);
@@ -144,7 +144,7 @@
 
             if (facenormal.DotProduct(sun_dir) > 0.0)
             {
-                
+
                 sface = null;
                 config = Shadow_Configuration.notExposed;
                 status = Computation_status.success;
@@ -154,16 +154,17 @@
             }
 
 
-            (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, exposedface, -sun_dir,10,10,0, ref log);
-
+            (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, exposedface, -sun_dir, 10, 10, 0, ref log);
+            /*
             log.Add(shadow_candidates_id.Count()+ " Shadow candidates elements represented by " + shadow_candidates_solid.Count()+ " solids ");
             foreach(ElementId id in shadow_candidates_id)
             {
                 log.Add("   Element Id "+id.IntegerValue+ " "+doc.GetElement(id).Name.ToString());
             }
+            */
 
 
-            
+
 
             if (shadow_candidates_solid.Count() == 0)
             {
@@ -177,7 +178,7 @@
             }
 
 
-            sface = ProjectShadowByfaceunion(doc, wallportion, exposedface, shadow_candidates_solid, -sun_dir, proximity_max * 1.2,  log);
+            sface = ProjectShadowByfaceunion(doc, wallportion, exposedface, shadow_candidates_solid, -sun_dir, proximity_max * 1.2, log);
 
 
             if (sface != null)
@@ -251,7 +252,7 @@
 
             return sfa;
         }
-       
+
         public static (List<Solid>, List<Face>, XYZ) GetGlassSurfacesAndSolids(Document doc, Element window, List<string> log)
         {
             //Dictionary<ElementId,Face> faces = new Dictionary<ElementId, Face>();
@@ -414,7 +415,7 @@
 
         }
 
-        public static  (List<Solid>, double, List<ElementId>) GetPossibleShadowingSolids(Document doc, Face face, XYZ sun_dir, int Nu, int Nv,int Nw, ref List<string> log)
+        public static (List<Solid>, double, List<ElementId>) GetPossibleShadowingSolids(Document doc, Face face, XYZ sun_dir, int Nu, int Nv, int Nw, ref List<string> log)
         {
             FilteredElementCollector collector = new FilteredElementCollector(doc);
             Func<View3D, bool> isNotTemplate = v3 => !(v3.IsTemplate);
@@ -441,7 +442,7 @@
             double dv = (bbuv.Max[1] - bbuv.Min[1]) / (Nv - 1);
             Stopwatch sw = new Stopwatch();
             Stopwatch swmacro = new Stopwatch();
-            
+
             List<ReferenceWithContext> referenceWithContexts2 = new List<ReferenceWithContext>();
             //List<ReferenceWithContext> temp = new List<ReferenceWithContext>();
 
@@ -459,7 +460,7 @@
 
             // search for candidates with rays parallels to the surface
             // usefull for wall (large surface and small shadowing devices when projected in surface plan)
-            if( Nw>0)
+            if (Nw > 0)
             {
                 log.Add("       NOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO ");
                 /*
@@ -516,14 +517,14 @@
 
             }
 
-           
+
 
 
             IList<ElementId> elementIds = new List<ElementId>();
             double proximity_max = 0.0;
             foreach (ReferenceWithContext rc in referenceWithContexts2)
             {
-                
+
                 proximity_max = Math.Max(proximity_max, rc.Proximity);
                 elementIds.Add(rc.GetReference().ElementId);
 
@@ -539,20 +540,20 @@
                 log.Add("           No intersecting element - full ligth  ");
                 //continue;
             }*/
-           
 
-    
+
+
             List<Solid> shadowing_solids = new List<Solid>();
 
             foreach (ElementId elementId in elementIds)
             {
 
                 Element el = doc.GetElement(elementId);
-                shadowing_solids.AddRange(utils.GetSolids(el, log));
+                shadowing_solids.AddRange(utils.GetSolids(el,false, log));
 
             }
 
-                        
+
             return (shadowing_solids, proximity_max, elementIds.ToList());
         }
 
@@ -578,11 +579,9 @@
             {
                 s = GeometryCreationUtilities.CreateExtrusionGeometry(gface.GetEdgesAsCurveLoops(), extrusion_dir, extrusion_dist);
             }
-            catch (Exception e)
+            catch
             {
-                log.Add("           Extrusion failled (exception) " + e.ToString());
-                log.Add("           extrusiondir =  " + extrusion_dir.ToString());
-                log.Add("           extrusiondist =  " + extrusion_dist.ToString());
+
             }
             sw.Stop();
             ts = sw.Elapsed;
@@ -638,7 +637,7 @@
                     intersection = BooleanOperationsUtils.ExecuteBooleanOperation(s, shad, BooleanOperationsType.Intersect);
 
                 }
-                catch 
+                catch
                 {
                     log.Add("           Bolean Intersection failled (exception) ");
                 }
@@ -650,7 +649,7 @@
                 {
                     inter_list.Add(intersection);
                     //log.Add(" Solid volume " + shad.Volume + " Intersection volume " + intersection.Volume);
-                    log.Add("           Bolean Intersection =  " + intersection.Volume);
+                    //log.Add("           Bolean Intersection =  " + intersection.Volume);
                 }
                 else
                 {
@@ -658,11 +657,7 @@
                 }
 
             }
-            sw.Stop();
-            ts = sw.Elapsed;
-            // elapsedTime = String.Format("---- In intersection      : {0:N5}  ms", ts.TotalMilliseconds);
-            //log.Add(elapsedTime);
-            sw.Restart();
+
 
             if (inter_list.Count() == 0 || inter_list[0] == null)
             {
@@ -677,7 +672,7 @@
                 {
                     BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(union, inter_list[i], BooleanOperationsType.Union);
                 }
-                catch 
+                catch
                 {
                     log.Add("           Union partial faillure ");
                 }
@@ -697,9 +692,7 @@
             doc.ActiveView.SetElementOverrides(ds.Id, ogsf);
             //log.Add("           Union volume " + union.Volume);
               */
-            sw.Stop();
-            ts = sw.Elapsed;
-            elapsedTime = String.Format("---- In Union      : {0:N5}  ms", ts.TotalMilliseconds);
+
             //log.Add(elapsedTime);
             sw.Restart();
 
@@ -846,7 +839,7 @@
                     BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(union, extrudedfaces[i], BooleanOperationsType.Union);
                     //log.Add("           Union volume " + union.Volume);
                 }
-                catch 
+                catch
                 {
                     log.Add("            Second Union partial faillure ");
                 }
@@ -858,7 +851,7 @@
                 intersection = BooleanOperationsUtils.ExecuteBooleanOperation(union, gsolid, BooleanOperationsType.Intersect);
 
             }
-            catch 
+            catch
             {
 
                 log.Add("           Second  intersection failled");
@@ -875,9 +868,7 @@
                 }
             }
 
-            sw.Stop();
-            ts = sw.Elapsed;
-            elapsedTime = String.Format("---- In Extrusion      : {0:N5}  ms", ts.TotalMilliseconds);
+
             //log.Add(elapsedTime);
             sw.Restart();
 
@@ -885,7 +876,7 @@
 
         }
 
-        public static List<ElementId> DisplayShadow(Document doc, List<(Face, Face, Shadow_Configuration, Computation_status)> result,List<string> log)
+        public static List<ElementId> DisplayShadow(Document doc, List<(Face, Face, Shadow_Configuration, Computation_status)> result, List<string> log)
         {
             // Extrude a little bit the surface and show it as a solid volume
             Face glass_face;
@@ -933,11 +924,11 @@
             ogsf.SetCutForegroundPatternColor(failColor);
 
             DirectShape ds;
-            
-           
+
+
             for (int i = 0; i < result.Count; i++)
             {
-                
+
                 glass_face = result[i].Item1;
                 shadow_face = result[i].Item2;
                 config = result[i].Item3;
@@ -949,7 +940,7 @@
                 {
 
                     shadow = GeometryCreationUtilities.CreateExtrusionGeometry(glass_face.GetEdgesAsCurveLoops(), extrusion_dir, ext_length);
-                    
+
                     //log.Add(" face area" + glass_face.Area);
                     ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
                     ds.ApplicationId = "Application id";
@@ -969,7 +960,7 @@
                         {
 
                             shadow = GeometryCreationUtilities.CreateExtrusionGeometry(glass_face.GetEdgesAsCurveLoops(), extrusion_dir, ext_length);
-                            
+
                             ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
                             ds.ApplicationId = "Application id";
                             ds.ApplicationDataId = "Geometry object id";
@@ -1047,5 +1038,6 @@
 
 
     }
-
 }
+
+
