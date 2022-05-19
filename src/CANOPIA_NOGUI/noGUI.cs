@@ -267,8 +267,9 @@ namespace canopia_nogui
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
-            natural_ventilation.openning_ratio(doc, ref log);
-
+            Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.openning_ratio(doc, ref log);
+            natural_ventilation.display_opening(doc,results, ref log);
+            natural_ventilation.AnalyzeOpening(doc, results, ref log);
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
             File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
