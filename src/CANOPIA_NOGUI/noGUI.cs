@@ -56,8 +56,8 @@ namespace canopia_nogui
             // create a shared parameter to attach shadow analysis result to each window
             bool spcreationOK;
             Guid sfaguid, ESguid;
-            (spcreationOK, sfaguid) = utils.createSharedParameterForWindows(doc, app, log);
-            ESguid = utils.createDataStorageWindow(doc, log);
+            (spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
+            ESguid = utils_window.createDataStorageWindow(doc, log);
             //ESguid = shadow_computer.ESGuid;
             //Collect windows
             Options options = new Options();
@@ -85,7 +85,7 @@ namespace canopia_nogui
                     try
                     {
                         win_ref_display = shadow_computation.DisplayShadow(doc, results, log);
-                        utils.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
+                        utils_window.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
                         all_ref_display.AddRange(win_ref_display);
 
                     }
@@ -101,7 +101,7 @@ namespace canopia_nogui
 
 
             }
-            List<ElementId> tohide = new List<ElementId>();
+           /* List<ElementId> tohide = new List<ElementId>();
             List<ElementId> toshow = new List<ElementId>();
 
             Schema windowdata = null;
@@ -150,7 +150,7 @@ namespace canopia_nogui
                 t.Commit();
             }
 
-
+            */
 
 
 
@@ -267,9 +267,11 @@ namespace canopia_nogui
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
-            Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.openning_ratio(doc, ref log);
+            
+            Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
             natural_ventilation.display_opening(doc,results, ref log);
-            natural_ventilation.AnalyzeOpening(doc, results, ref log);
+            natural_ventilation.openingRatio(doc, results, ref log);
+            natural_ventilation.equilibriumRatio(doc, results, ref log);
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
             File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);

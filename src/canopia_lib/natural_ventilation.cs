@@ -13,7 +13,7 @@ namespace canopia_lib
 {
     public class natural_ventilation
     {
-        public static Dictionary<ElementId, List<(Face, Face, ElementId)>> openning_ratio(Document doc, ref List<String> log)
+        public static Dictionary<ElementId, List<(Face, Face, ElementId)>> computeOpening(Document doc, ref List<String> log)
         {
             // liste des murs exterieurs
             // ouvertures dans ces murs --> fenetre
@@ -22,6 +22,9 @@ namespace canopia_lib
             exterior_wall = utils.GetExteriorWallPortion(doc, 0.000001, ref log);
 
             ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Windows);
+
+
+            
 
             XYZ cutDir = null;
             FamilyInstance fi;
@@ -33,16 +36,27 @@ namespace canopia_lib
 
             foreach (ElementId id_w in exterior_wall.Keys)
             {
-                log.Add("=========== WALL ID " + id_w + "  name " + doc.GetElement(id_w).Name);
+                //log.Add("=========== WALL ID " + id_w + "  name " + doc.GetElement(id_w).Name);
                 wall = doc.GetElement(id_w) as Wall;
                 IList<ElementId> dependentIds = wall.GetDependentElements(filter);
-                
+
+                foreach (ElementId id in dependentIds)
+                {
+                    Element window = doc.GetElement(id) as Element;
+                    double ratio = utils_window.infer_window_porosity(doc, window, ref log);
+                    //log.Add(" infered porosity " + ratio);
+                }
 
                 //log.Add("       Number of dependent element in wall " + dependentIds.Count());
                 if (dependentIds.Count() == 0)
                 {
                     continue;
                 }
+                /*
+                foreach (ElementId id in dependentIds)
+                {
+                    infer_window_porosity(doc, doc.GetElement(id),ref log);
+                }*/
 
                 List<Solid> wallSolids = utils.GetSolids(wall, false, log);
                 wallSolid = wallSolids[0];
@@ -111,10 +125,11 @@ namespace canopia_lib
             return results;
         }
 
-        public static void AnalyzeOpening(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
+        public static List<double> openingRatio(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
         {
             List<double> wall_area = new List<double>();
             List<double> opening_area = new List<double>();
+            List<double> ratio = new List<double>();
 
             foreach (ElementId key in results.Keys)
             {
@@ -137,9 +152,83 @@ namespace canopia_lib
 
                 int largestOpeningIdx = opening_area.IndexOf(opening_area.Max());
                 double opening_ratio = opening_area.Sum() / wall_area[largestOpeningIdx];
+                ratio.Add(opening_ratio);
                 log.Add(" Room name " + doc.GetElement(key).Name+"  === Opening ratio  "+ opening_ratio);
             }
+            return ratio;
         }
+
+        public static void equilibriumRatio(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
+        {
+            double northArea = 0.0;
+            double southArea = 0.0;
+            double eastArea  = 0.0;
+            double westArea  = 0.0;
+            double [] openingSums = new double[4];
+            log.Add(" opening " + openingSums.ToString());
+
+            XYZ origin = new XYZ(0, 0, 0);
+            XYZ Y = new XYZ(0.0, 1.0, 0.0);//considred as the project's north 
+            XYZ Z = new XYZ(0.0, 0.0, 1.0);
+
+            ProjectLocation location = doc.ActiveProjectLocation;
+            ProjectPosition position = location.GetProjectPosition(origin);
+            double trueNorthAngle = position.Angle; // [ -PI; PI]
+            double trueNormalAngle = 0;
+            //assumption : project north correspond to Y basis vector [ 0 1 0 ]
+            log.Add(" True north angle " + trueNorthAngle );
+            // true orientation of a vector = angle to Ybasis (in XY plane) + trueNorthAngle
+
+            foreach (ElementId key in results.Keys)
+            {
+                foreach ((Face, Face, ElementId) res in results[key])
+                {
+                    XYZ normal = res.Item2.ComputeNormal(new UV(0.5, 0.5));
+
+                    trueNormalAngle = ( Y.AngleOnPlaneTo(normal, Z) + trueNorthAngle ) % (2 * Math.PI) ;
+                    double idx =  Math.Floor( (trueNormalAngle-Math.PI/4.0)/(0.5*Math.PI));
+
+                    log.Add(" Normal            " + normal);
+                    log.Add(" True normal angle " + trueNormalAngle +"  2 PI "+ 2*Math.PI);
+                    log.Add(" Index             " + idx);
+                    
+                    
+
+                }
+
+            }
+            
+
+            /*
+
+           var projectInfoElement
+               = new FilteredElementCollector(doc)
+                   .OfCategory(BuiltInCategory.OST_ProjectBasePoint)
+                   .FirstElement();
+
+            var bipAtn
+                = BuiltInParameter.BASEPOINT_ANGLETON_PARAM;
+
+            var patn = projectInfoElement.get_Parameter(
+                bipAtn);
+
+            var trueNorthAngle = patn.AsDouble();
+            /*Dictionary<string,List<double>> orientationArea = new Dictionary<string,List<double>>();
+            foreach(ElementId key in results.Keys)
+            {
+                foreach(Face f in results[key].Item2)
+                {
+                    XYZ normal = f.ComputeNormal(new UV(0.5;0.5));
+                    if (orientationArea.ContainsKey(normal.ToString()))
+                    {
+
+                    }
+                }
+                
+            }*/
+        }
+
+
 
 
         public static void display_opening(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)

@@ -16,124 +16,6 @@ namespace canopia_lib
     {
 
 
-        public static (bool, Guid) createSharedParameterForWindows(Document doc, Application app, List<string> log)
-        {
-
-            DefinitionFile spFile = app.OpenSharedParameterFile();
-            log.Add(" Number of definition groups  " + spFile.Groups.Count());
-
-            DefinitionGroup dgcanopia = spFile.Groups.get_Item("CANOPIA");
-            if (dgcanopia != null)
-            {
-                log.Add(" Defintion group canopia found !!! ");
-            }
-            else
-            {
-                log.Add(" CANOPIA group must be created ");
-                dgcanopia = spFile.Groups.Create("CANOPIA");
-            }
-            // shadow fraction area
-            Definition sfadef = dgcanopia.Definitions.get_Item("shadowFractionArea");
-            if (sfadef != null)
-            {
-                log.Add(" ------Defintion SFA  found !!! ");
-            }
-            else
-            {
-                log.Add(" ------SFA Definition must be created ");
-                ExternalDefinitionCreationOptions defopt = new ExternalDefinitionCreationOptions("shadowFractionArea", SpecTypeId.Number);
-                defopt.UserModifiable = false;//only the API can modify it
-                defopt.HideWhenNoValue = true;
-                defopt.Description = "Fraction of shadowed glass surface for direct sunlight only";
-                using (Transaction t = new Transaction(doc))
-                {
-                    t.Start("SFA shared parameter creation");
-                    sfadef = dgcanopia.Definitions.Create(defopt);
-                    t.Commit();
-                }
-
-            }
-            ExternalDefinition sfadefex = sfadef as ExternalDefinition;
-
-            Category cat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows);
-            CategorySet catSet = app.Create.NewCategorySet();
-            catSet.Insert(cat);
-            InstanceBinding instanceBinding = app.Create.NewInstanceBinding(catSet);
-
-
-            // Get the BingdingMap of current document.
-            BindingMap bindingMap = doc.ParameterBindings;
-            bool instanceBindOK = false;
-            using (Transaction t = new Transaction(doc))
-            {
-                t.Start("SFA binding");
-                instanceBindOK = bindingMap.Insert(sfadef, instanceBinding);
-                t.Commit();
-            }
-
-            return (instanceBindOK, sfadefex.GUID);
-
-        }
-
-        public static Guid createDataStorageWindow(Document doc, List<string> log)
-        {
-            // Storage of the shadow element ID in order to hide/show them or removing
-
-            const string windowSchemaName = "ShadowDataOnWindows";
-            Schema windowdataschema = null;
-            foreach (Schema schem in Schema.ListSchemas())
-            {
-                log.Add(schem.SchemaName);
-                if (schem.SchemaName == windowSchemaName)
-                {
-                    windowdataschema = schem;
-                    //log.Add(" schema found");
-                    break;
-                }
-            }
-            if (windowdataschema != null)
-            {
-                return windowdataschema.GUID;
-            }
-
-            Transaction createSchemaAndStoreData = new Transaction(doc, "tCreateAndStore");
-
-            createSchemaAndStoreData.Start();
-            SchemaBuilder schemaBuilder =
-                    new SchemaBuilder(new Guid("f9d81b89-a1bc-423c-9a29-7ce446ceea25"));
-            schemaBuilder.SetReadAccessLevel(AccessLevel.Public);
-            schemaBuilder.SetWriteAccessLevel(AccessLevel.Public);
-            schemaBuilder.SetSchemaName("ShadowDataOnWindows");
-            // create a field to store an XYZ
-            FieldBuilder fieldBuilder =
-                    schemaBuilder.AddArrayField("ShapeId", typeof(ElementId));
-            // fieldBuilder.SetUnitType(UnitType.UT_Length);
-            fieldBuilder.SetDocumentation("IDs of the element representing shadow/light surface in revit model.");
-
-
-            Schema schema = schemaBuilder.Finish(); // register the Schema objectwxwx
-
-            createSchemaAndStoreData.Commit();
-            log.Add("    Creation of EXStorage achevied ");
-
-            return schema.GUID;
-        }
-
-
-
-        public static void storeDataOnWindow(Document doc, Element element, IList<ElementId> ids, Guid guid, List<string> log)
-        {
-
-            Schema schema = Schema.Lookup(guid);
-            Entity entity = new Entity(schema);
-            Field ShapeId = schema.GetField("ShapeId");
-            // set the value for this entity
-            entity.Set(ShapeId, ids);
-            element.SetEntity(entity);
-            //log.Add("    data stored ");
-
-        }
-
 
         public static XYZ GetSunDirection(View view)
         {
@@ -260,6 +142,11 @@ namespace canopia_lib
                     {
                         //log.Add("       Type of geometric object  of " + geoobj.GetType());
                         //log.Add("       Geometry instance  of " + typeof(Solid));
+                        if(geoobj == null)
+                        {
+                            log.Add(" geo obj null ");
+                            continue;
+                        }
 
                         if (geoobj.GetType() == typeof(Solid))
                         {
@@ -269,8 +156,6 @@ namespace canopia_lib
                             {
                                 solids.Add(sol);
                                
-
-
                             }
 
                         }
@@ -282,6 +167,10 @@ namespace canopia_lib
                             {
 
                                 GeometryElement instanceGeometryElement = instance.GetInstanceGeometry();
+                                if(instanceGeometryElement == null)
+                                {
+                                    continue;
+                                }
 
                                 foreach (GeometryObject o in instanceGeometryElement)
                                 {
