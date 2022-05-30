@@ -269,7 +269,7 @@ namespace canopia_nogui
 
             
             Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
-            natural_ventilation.display_opening(doc,results, ref log);
+            //natural_ventilation.display_opening(doc,results, ref log);
             natural_ventilation.openingRatio(doc, results, ref log);
             natural_ventilation.equilibriumRatio(doc, results, ref log);
 

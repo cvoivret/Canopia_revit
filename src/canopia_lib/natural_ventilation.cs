@@ -160,72 +160,71 @@ namespace canopia_lib
 
         public static void equilibriumRatio(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
         {
-            double northArea = 0.0;
-            double southArea = 0.0;
-            double eastArea  = 0.0;
-            double westArea  = 0.0;
+            
             double [] openingSums = new double[4];
             log.Add(" opening " + openingSums.ToString());
 
-            XYZ origin = new XYZ(0, 0, 0);
-            XYZ Y = new XYZ(0.0, 1.0, 0.0);//considred as the project's north 
-            XYZ Z = new XYZ(0.0, 0.0, 1.0);
+            //XYZ.BasisY considred as the project's north 
+           
 
             ProjectLocation location = doc.ActiveProjectLocation;
-            ProjectPosition position = location.GetProjectPosition(origin);
+            ProjectPosition position = location.GetProjectPosition(XYZ.Zero);
+            Transform trueNorthTransform = location.GetTransform();
+
+            log.Add(" True North vector " + trueNorthTransform.BasisY);
+
             double trueNorthAngle = position.Angle; // [ -PI; PI]
             double trueNormalAngle = 0;
             //assumption : project north correspond to Y basis vector [ 0 1 0 ]
-            log.Add(" True north angle " + trueNorthAngle );
+            //log.Add(" True north angle " + trueNorthAngle );
             // true orientation of a vector = angle to Ybasis (in XY plane) + trueNorthAngle
+
+            XYZ NE = new XYZ(1.0, 1.0, 0.0);
+            NE = NE.Normalize();
+            log.Add(" Reference vector "+ NE.ToString());
 
             foreach (ElementId key in results.Keys)
             {
                 foreach ((Face, Face, ElementId) res in results[key])
                 {
                     XYZ normal = res.Item2.ComputeNormal(new UV(0.5, 0.5));
-
-                    trueNormalAngle = ( Y.AngleOnPlaneTo(normal, Z) + trueNorthAngle ) % (2 * Math.PI) ;
-                    double idx =  Math.Floor( (trueNormalAngle-Math.PI/4.0)/(0.5*Math.PI));
-
-                    log.Add(" Normal            " + normal);
-                    log.Add(" True normal angle " + trueNormalAngle +"  2 PI "+ 2*Math.PI);
-                    log.Add(" Index             " + idx);
+                    XYZ realNormal = trueNorthTransform.OfVector(normal);
                     
+                    // Compute the angle between the North est direction and the real direction of the normal
+                    double angleToNE = NE.AngleOnPlaneTo(realNormal, XYZ.BasisZ);
                     
+                    // 0 : norht sector ; 1 W sector; 2 South sector ; 3 East sector
+                    int idx = (int) Math.Floor( (angleToNE / (Math.PI*0.5) ));
+                    // 
+                    openingSums[idx] += res.Item2.Area;
+
+                    log.Add(" **Normal            " + normal);
+                    log.Add("   Transformed normal" + realNormal);
+                    //log.Add("   Angle to X basis  " + XYZ.BasisX.AngleOnPlaneTo(trueNormal, XYZ.BasisZ));
+                    log.Add("   Angle to Y basis  " + angleToNE/(Math.PI)*180.0 + " idx " + idx );
+
+                    //trueNormalAngle = ( XYZ.BasisY.AngleOnPlaneTo(normal, XYZ.BasisZ) + trueNorthAngle ) % (2 * Math.PI) ;
+                    
+                    //log.Add(" True normal angle " + trueNormalAngle +"  2 PI "+ 2*Math.PI);
+                    //log.Add(" Index             " + idx);
+                                       
 
                 }
 
             }
+            double max = openingSums.Max();
+            int idxmax = Array.IndexOf(openingSums,max);
+            double balance = max/openingSums.Sum();
+            foreach (double sum in openingSums)
+            {
+                log.Add(" Sum "+ sum);
+            }
+            log.Add(" Max " + max);
+            log.Add(" idx " + idxmax);
+            log.Add(" balance " + balance);
+            // a confronter à la norme
             
 
-            /*
-
-           var projectInfoElement
-               = new FilteredElementCollector(doc)
-                   .OfCategory(BuiltInCategory.OST_ProjectBasePoint)
-                   .FirstElement();
-
-            var bipAtn
-                = BuiltInParameter.BASEPOINT_ANGLETON_PARAM;
-
-            var patn = projectInfoElement.get_Parameter(
-                bipAtn);
-
-            var trueNorthAngle = patn.AsDouble();
-            /*Dictionary<string,List<double>> orientationArea = new Dictionary<string,List<double>>();
-            foreach(ElementId key in results.Keys)
-            {
-                foreach(Face f in results[key].Item2)
-                {
-                    XYZ normal = f.ComputeNormal(new UV(0.5;0.5));
-                    if (orientationArea.ContainsKey(normal.ToString()))
-                    {
-
-                    }
-                }
-                
-            }*/
         }
 
 
