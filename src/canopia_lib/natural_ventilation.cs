@@ -26,9 +26,9 @@ namespace canopia_lib
 
             
 
-            XYZ cutDir = null;
-            FamilyInstance fi;
-            bool cutout_succes = false;
+            
+            
+            
             Solid wallSolid = null;
             List<Solid> openingSolids = new List<Solid>();
             //List<Solid> solids2 = new List<Solid>();
@@ -174,14 +174,14 @@ namespace canopia_lib
             log.Add(" True North vector " + trueNorthTransform.BasisY);
 
             double trueNorthAngle = position.Angle; // [ -PI; PI]
-            double trueNormalAngle = 0;
+            
             //assumption : project north correspond to Y basis vector [ 0 1 0 ]
             //log.Add(" True north angle " + trueNorthAngle );
             // true orientation of a vector = angle to Ybasis (in XY plane) + trueNorthAngle
 
             XYZ NE = new XYZ(1.0, 1.0, 0.0);
             NE = NE.Normalize();
-            log.Add(" Reference vector "+ NE.ToString());
+            //log.Add(" Reference vector "+ NE.ToString());
 
             foreach (ElementId key in results.Keys)
             {
@@ -198,10 +198,10 @@ namespace canopia_lib
                     // 
                     openingSums[idx] += res.Item2.Area;
 
-                    log.Add(" **Normal            " + normal);
-                    log.Add("   Transformed normal" + realNormal);
+                    //log.Add(" **Normal            " + normal);
+                    //log.Add("   Transformed normal" + realNormal);
                     //log.Add("   Angle to X basis  " + XYZ.BasisX.AngleOnPlaneTo(trueNormal, XYZ.BasisZ));
-                    log.Add("   Angle to Y basis  " + angleToNE/(Math.PI)*180.0 + " idx " + idx );
+                    //log.Add("   Angle to Y basis  " + angleToNE/(Math.PI)*180.0 + " idx " + idx );
 
                     //trueNormalAngle = ( XYZ.BasisY.AngleOnPlaneTo(normal, XYZ.BasisZ) + trueNorthAngle ) % (2 * Math.PI) ;
                     
@@ -221,7 +221,7 @@ namespace canopia_lib
             }
             log.Add(" Max " + max);
             log.Add(" idx " + idxmax);
-            log.Add(" balance " + balance);
+            log.Add(" Taux d equilibre " + balance);
             // a confronter à la norme
             
 
@@ -236,31 +236,29 @@ namespace canopia_lib
             fillPatternElementFilter.OfClass(typeof(FillPatternElement));
             FillPatternElement fillPatternElement = fillPatternElementFilter.First(f => (f as FillPatternElement).GetFillPattern().IsSolidFill) as FillPatternElement;
 
+            Color wallColor = new Color(154, 205, 50);
+            Color openingColor = new Color(210, 105, 30);
+
             OverrideGraphicSettings ogss = new OverrideGraphicSettings();
             ogss.SetSurfaceForegroundPatternId(fillPatternElement.Id);
-            Color shadowColor = new Color(154, 205, 50);
-            ogss.SetProjectionLineColor(shadowColor);
-            ogss.SetSurfaceForegroundPatternColor(shadowColor);
-            ogss.SetCutForegroundPatternColor(shadowColor);
+            ogss.SetProjectionLineColor(wallColor);
+            ogss.SetSurfaceForegroundPatternColor(wallColor);
+            ogss.SetCutForegroundPatternColor(wallColor);
             DirectShape ds = null;
 
             OverrideGraphicSettings ogs = new OverrideGraphicSettings();
             ogs.SetSurfaceForegroundPatternId(fillPatternElement.Id);
-            Color color = new Color(210, 105, 30);
-            ogs.SetProjectionLineColor(color);
-            ogs.SetSurfaceForegroundPatternColor(color);
-            ogs.SetCutForegroundPatternColor(color);
+            ogs.SetProjectionLineColor(openingColor);
+            ogs.SetSurfaceForegroundPatternColor(openingColor);
+            ogs.SetCutForegroundPatternColor(openingColor);
 
 
             List<Face> displayed = new List<Face>();
             Solid wall = null;
             Solid opening = null;
-            double ext_length = 1;
-            using (Transaction t = new Transaction(doc))
-            {
-                t.Start("Display opening");
-                foreach (ElementId key in results.Keys)
-                {
+            double ext_length = 1.0;
+           foreach (ElementId key in results.Keys)
+           {
                     //log.Add(" Room name " + doc.GetElement(key).Name);
                     foreach ((Face, Face,ElementId) ff in results[key])
                     {
@@ -279,8 +277,7 @@ namespace canopia_lib
                         ds.SetShape(new GeometryObject[] { opening });
                         doc.ActiveView.SetElementOverrides(ds.Id, ogs);
                     }
-                }
-                t.Commit();
+                
             }
 
 

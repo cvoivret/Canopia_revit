@@ -14,9 +14,6 @@ namespace canopia_lib
 
     public class utils
     {
-
-
-
         public static XYZ GetSunDirection(View view)
         {
             var doc = view.Document;
@@ -466,6 +463,77 @@ namespace canopia_lib
         }
 
 
+        public static DefinitionGroup CANOPIAdefintionGroup(Document doc, Application app, List<string> log)
+        {
+
+            DefinitionFile spFile = app.OpenSharedParameterFile();
+            log.Add(" Number of definition groups  " + spFile.Groups.Count());
+
+            DefinitionGroup dgcanopia = spFile.Groups.get_Item("CANOPIA");
+            if (dgcanopia != null)
+            {
+                log.Add(" Defintion group canopia found !!! ");
+            }
+            else
+            {
+                log.Add(" CANOPIA group must be created ");
+                dgcanopia = spFile.Groups.Create("CANOPIA");
+            }
+            return dgcanopia;
+        }
+        public static Guid createDataStorageDisplay(Document doc, List<string> log)
+        {
+            // Storage of the shadow element ID in order to hide/show them or removing
+
+            const string SchemaName = "canopiaDisplayData";
+            Schema dataschema = null;
+            foreach (Schema schem in Schema.ListSchemas())
+            {
+                log.Add(schem.SchemaName);
+                if (schem.SchemaName == SchemaName)
+                {
+                    dataschema = schem;
+                    break;
+                }
+            }
+            if (dataschema != null)
+            {
+                return dataschema.GUID;
+            }
+
+            Transaction createSchema = new Transaction(doc, "CreateSchema");
+
+            createSchema.Start();
+            SchemaBuilder schemaBuilder =
+                    new SchemaBuilder(new Guid("f9d81b89-a1bc-423c-9a29-7ce446ceea25"));
+            schemaBuilder.SetReadAccessLevel(AccessLevel.Public);
+            schemaBuilder.SetWriteAccessLevel(AccessLevel.Public);
+            schemaBuilder.SetSchemaName("canopiaDisplayData");
+            // create a field to store an XYZ
+            FieldBuilder fieldBuilder = schemaBuilder.AddArrayField("ShapeId", typeof(ElementId));
+            // fieldBuilder.SetUnitType(UnitType.UT_Length);
+            fieldBuilder.SetDocumentation("IDs of the element representing surfaces used in CANOPIA tools (shadow, openings)");
+
+
+            Schema schema = schemaBuilder.Finish(); // register the Schema objectwxwx
+
+            createSchema.Commit();
+            log.Add("    Creation of EXStorage achevied ");
+
+            return schema.GUID;
+        }
+        public static void storeDataOnElementDisplay(Document doc, Element element, IList<ElementId> ids, Guid guid, List<string> log)
+        {
+
+            Schema schema = Schema.Lookup(guid);
+            Entity entity = new Entity(schema);
+            Field ShapeId = schema.GetField("ShapeId");
+            // set the value for this entity
+            entity.Set(ShapeId, ids);
+            element.SetEntity(entity);
+            //log.Add("    data stored ");
+
+        }
 
         class XyzEqualityComparer : IEqualityComparer<XYZ>
         {

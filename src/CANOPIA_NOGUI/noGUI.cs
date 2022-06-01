@@ -57,7 +57,7 @@ namespace canopia_nogui
             bool spcreationOK;
             Guid sfaguid, ESguid;
             (spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
-            ESguid = utils_window.createDataStorageWindow(doc, log);
+            ESguid = utils.createDataStorageDisplay(doc, log);
             //ESguid = shadow_computer.ESGuid;
             //Collect windows
             Options options = new Options();
@@ -85,7 +85,7 @@ namespace canopia_nogui
                     try
                     {
                         win_ref_display = shadow_computation.DisplayShadow(doc, results, log);
-                        utils_window.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
+                        utils.storeDataOnElementDisplay(doc, window, win_ref_display, ESguid, log);
                         all_ref_display.AddRange(win_ref_display);
 
                     }
@@ -267,11 +267,32 @@ namespace canopia_nogui
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
-            
+
+            Guid guid;
+            bool spcreationOK = false;
+            (spcreationOK, guid) = utils_room.createSharedParameterForRooms(doc, app, log);
+            log.Add(" SP creation ok ? " + spcreationOK + "  guid " + guid);
+
+
             Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
-            //natural_ventilation.display_opening(doc,results, ref log);
-            natural_ventilation.openingRatio(doc, results, ref log);
-            natural_ventilation.equilibriumRatio(doc, results, ref log);
+            List<double> openingRatios = natural_ventilation.openingRatio(doc, results, ref log);
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start("Display opening");
+                natural_ventilation.display_opening(doc,results,ref log);
+                foreach((ElementId id,double or) in results.Keys.Zip(openingRatios,(first,second)=>(first,second)))
+                {
+                    log.Add(" Element found " + doc.GetElement(id).Name);
+                    doc.GetElement(id).get_Parameter(guid).Set(or);
+                }
+                //window.get_Parameter(sfaguid).Set(sfa);
+
+                t.Commit();
+            }
+            
+
+
+            //natural_ventilation.equilibriumRatio(doc, results, ref log);
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
             File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);

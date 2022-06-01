@@ -404,7 +404,7 @@
             //Form extruded = doc.FamilyCreate.NewExtrusionForm(true, ra, wall_normal.Multiply(10.0));
             Stopwatch sw = new Stopwatch();
             TimeSpan ts;
-            string elapsedTime;
+            
             BoundingBoxUV bbuv = gface.GetBoundingBox();
             UV facecenter = new UV(0.5 * (bbuv.Min[0] + bbuv.Max[0]), 0.5 * (bbuv.Min[1] + bbuv.Max[1]));
 

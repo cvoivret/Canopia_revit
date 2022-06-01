@@ -22,16 +22,9 @@ namespace canopia_lib
             DefinitionFile spFile = app.OpenSharedParameterFile();
             log.Add(" Number of definition groups  " + spFile.Groups.Count());
 
-            DefinitionGroup dgcanopia = spFile.Groups.get_Item("CANOPIA");
-            if (dgcanopia != null)
-            {
-                log.Add(" Defintion group canopia found !!! ");
-            }
-            else
-            {
-                log.Add(" CANOPIA group must be created ");
-                dgcanopia = spFile.Groups.Create("CANOPIA");
-            }
+            DefinitionGroup dgcanopia = utils.CANOPIAdefintionGroup(doc, app, log);
+
+           
             // shadow fraction area
             Definition sfadef = dgcanopia.Definitions.get_Item("shadowFractionArea");
             if (sfadef != null)
@@ -75,64 +68,11 @@ namespace canopia_lib
 
         }
 
-        public static Guid createDataStorageWindow(Document doc, List<string> log)
-        {
-            // Storage of the shadow element ID in order to hide/show them or removing
-
-            const string windowSchemaName = "ShadowDataOnWindows";
-            Schema windowdataschema = null;
-            foreach (Schema schem in Schema.ListSchemas())
-            {
-                log.Add(schem.SchemaName);
-                if (schem.SchemaName == windowSchemaName)
-                {
-                    windowdataschema = schem;
-                    //log.Add(" schema found");
-                    break;
-                }
-            }
-            if (windowdataschema != null)
-            {
-                return windowdataschema.GUID;
-            }
-
-            Transaction createSchemaAndStoreData = new Transaction(doc, "tCreateAndStore");
-
-            createSchemaAndStoreData.Start();
-            SchemaBuilder schemaBuilder =
-                    new SchemaBuilder(new Guid("f9d81b89-a1bc-423c-9a29-7ce446ceea25"));
-            schemaBuilder.SetReadAccessLevel(AccessLevel.Public);
-            schemaBuilder.SetWriteAccessLevel(AccessLevel.Public);
-            schemaBuilder.SetSchemaName("ShadowDataOnWindows");
-            // create a field to store an XYZ
-            FieldBuilder fieldBuilder =
-                    schemaBuilder.AddArrayField("ShapeId", typeof(ElementId));
-            // fieldBuilder.SetUnitType(UnitType.UT_Length);
-            fieldBuilder.SetDocumentation("IDs of the element representing shadow/light surface in revit model.");
-
-
-            Schema schema = schemaBuilder.Finish(); // register the Schema objectwxwx
-
-            createSchemaAndStoreData.Commit();
-            log.Add("    Creation of EXStorage achevied ");
-
-            return schema.GUID;
-        }
+        
 
 
 
-        public static void storeDataOnWindow(Document doc, Element element, IList<ElementId> ids, Guid guid, List<string> log)
-        {
 
-            Schema schema = Schema.Lookup(guid);
-            Entity entity = new Entity(schema);
-            Field ShapeId = schema.GetField("ShapeId");
-            // set the value for this entity
-            entity.Set(ShapeId, ids);
-            element.SetEntity(entity);
-            //log.Add("    data stored ");
-
-        }
 
         public static (List<Solid>, List<Face>, XYZ) GetGlassSurfacesAndSolids(Document doc, Element window, ref List<string> log)
         {
@@ -504,7 +444,7 @@ namespace canopia_lib
 
             FilteredElementCollector collector_w = new FilteredElementCollector(doc);
             ICollection<Element> mullions = collector_w.OfClass(typeof(FamilySymbol)).OfCategory(BuiltInCategory.OST_WindowsFrameMullionProjection).ToElements();
-            log.Add(" Inference of porosity ======== ");
+            //log.Add(" Inference of porosity ======== ");
 
             // Get the number of glass solid and centroid position
             // Based on that, infer the type of window
@@ -551,12 +491,12 @@ namespace canopia_lib
                 if(coplanar.All( val=> val ==true))
                 {
                     // fenetre battante coplanaires
-                    log.Add(" Fenetre battante mutliple");
+                   // log.Add(" Fenetre battante mutliple");
                     return 0.87;
                 }
                 else
                 {
-                    log.Add(" Fenetre coulissante mutliple N= "+ N);
+                    //log.Add(" Fenetre coulissante mutliple N= "+ N);
                     if (N == 2)
                         return 0.44;
                     else if (N == 3)

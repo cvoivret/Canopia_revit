@@ -168,7 +168,7 @@ namespace canopia_gui
             bool spcreationOK;
             Guid sfaguid, ESguid;
             (spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
-            ESguid = utils_window.createDataStorageWindow(doc, log);
+            ESguid = utils.createDataStorageDisplay(doc, log);
 
             //Collect all windows in models or Select windows on selection
             ICollection<Element> windows = null;
@@ -250,7 +250,7 @@ namespace canopia_gui
                     {
 
                         win_ref_display = shadow_computation.DisplayShadow(doc,results, log);
-                        utils_window.storeDataOnWindow(doc, window, win_ref_display, ESguid, log);
+                        utils.storeDataOnElementDisplay(doc, window, win_ref_display, ESguid, log);
                         all_ref_display.AddRange(win_ref_display);
 
                     }
