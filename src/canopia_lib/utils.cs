@@ -116,7 +116,7 @@ namespace canopia_lib
             return materials;
         }
 
-        public static List<Solid> GetSolids(Element element,bool union, List<string> log)
+        public static List<Solid> GetSolids(Element element, bool union, List<string> log)
         {
             Options options = new Options();
             options.ComputeReferences = true;
@@ -139,7 +139,7 @@ namespace canopia_lib
                     {
                         //log.Add("       Type of geometric object  of " + geoobj.GetType());
                         //log.Add("       Geometry instance  of " + typeof(Solid));
-                        if(geoobj == null)
+                        if (geoobj == null)
                         {
                             log.Add(" geo obj null ");
                             continue;
@@ -152,7 +152,7 @@ namespace canopia_lib
                             if (sol != null & sol.Volume > 0.000001)
                             {
                                 solids.Add(sol);
-                               
+
                             }
 
                         }
@@ -164,7 +164,7 @@ namespace canopia_lib
                             {
 
                                 GeometryElement instanceGeometryElement = instance.GetInstanceGeometry();
-                                if(instanceGeometryElement == null)
+                                if (instanceGeometryElement == null)
                                 {
                                     continue;
                                 }
@@ -174,10 +174,10 @@ namespace canopia_lib
                                     //log.Add("       type  "+ o.GetType());
                                     Solid sol = o as Solid;
 
-                                    if (sol != null & sol.Volume >0.000001)
+                                    if (sol != null & sol.Volume > 0.000001)
                                     {
                                         solids.Add(sol);
-                                        
+
                                         //log.Add(" Area volume instancegeometryelement= " + sol.);
 
                                     }
@@ -316,7 +316,7 @@ namespace canopia_lib
                         }
 
                         wallportion = GeometryCreationUtilities.CreateExtrusionGeometry(face.GetEdgesAsCurveLoops(),
-                                                                    face.ComputeNormal(new UV(0.5, 0.5)), wall.Width+offset);
+                                                                    face.ComputeNormal(new UV(0.5, 0.5)), wall.Width + offset);
 
                         if (data.ContainsKey(wall.Id))
                         {
@@ -347,7 +347,7 @@ namespace canopia_lib
                 wall = doc.GetElement(key) as Wall;
                 double wall_width = wall.Width;
                 List<Solid> extrusions = new List<Solid>();
-                
+
 
                 int Nwallportion = data[key].Count();
                 bool[] tokeep = new bool[Nwallportion];
@@ -399,14 +399,14 @@ namespace canopia_lib
 
             }
             data.Clear();
-            List<(Face,Solid,Room)> temp;
-            
+            List<(Face, Solid, Room)> temp;
+
             foreach (ElementId key in data2.Keys)
             {
                 //log.Add(" WWAAAAAALLL " + key + " Nface "+ data2[key].Count());
                 temp = data2[key];
-                List<(int, int)> tomerge= new List<(int, int)>();
-                for (int i=0;i<data2[key].Count();++i)// ((Face, Solid, Room) temp in data2[key])
+                List<(int, int)> tomerge = new List<(int, int)>();
+                for (int i = 0; i < data2[key].Count(); ++i)// ((Face, Solid, Room) temp in data2[key])
                 {
                     string roomName = data2[key][i].Item3.Name;
                     for (int j = i + 1; j < data2[key].Count(); ++j)
@@ -419,7 +419,7 @@ namespace canopia_lib
 
                         }
                     }
-                    
+
                 }
                 /*log.Add(" Before ");
                 foreach((Face, Solid, Room) t in temp)
@@ -427,7 +427,7 @@ namespace canopia_lib
                     log.Add(" normal " + t.Item1.ComputeNormal(new UV(0.5,0.5))+" Volume "+ t.Item2.Volume + " Room "+ t.Item3.Name );
                 }
                 */
-                for( int k= tomerge.Count()-1;k>=0;k--)// (int i,int j )// in tomerge.Reverse())
+                for (int k = tomerge.Count() - 1; k >= 0; k--)// (int i,int j )// in tomerge.Reverse())
                 {
                     int i = tomerge[k].Item1;
                     int j = tomerge[k].Item2;
@@ -435,17 +435,17 @@ namespace canopia_lib
                     XYZ normal = temp[i].Item1.ComputeNormal(new UV(0.5, 0.5));
                     Face unionface = null;
                     Room unionroom = temp[i].Item3 as Room;
-                    foreach( Face face in union.Faces)
+                    foreach (Face face in union.Faces)
                     {
-                        if( face.ComputeNormal(new UV(0.5, 0.5)).IsAlmostEqualTo( normal) )
+                        if (face.ComputeNormal(new UV(0.5, 0.5)).IsAlmostEqualTo(normal))
                         {
                             unionface = face;
-                            
+
                         }
                     }
-                    temp[i]=(unionface, union, unionroom);
+                    temp[i] = (unionface, union, unionroom);
                     temp.RemoveAt(j);
-                     
+
                 }
                 /* log.Add(" After ");
                  foreach ((Face, Solid, Room) t in temp)
@@ -466,10 +466,11 @@ namespace canopia_lib
         public static DefinitionGroup CANOPIAdefintionGroup(Document doc, Application app, List<string> log)
         {
 
+            string groupName = "Canopia";
             DefinitionFile spFile = app.OpenSharedParameterFile();
             log.Add(" Number of definition groups  " + spFile.Groups.Count());
 
-            DefinitionGroup dgcanopia = spFile.Groups.get_Item("CANOPIA");
+            DefinitionGroup dgcanopia = spFile.Groups.get_Item(groupName);
             if (dgcanopia != null)
             {
                 log.Add(" Defintion group canopia found !!! ");
@@ -477,7 +478,7 @@ namespace canopia_lib
             else
             {
                 log.Add(" CANOPIA group must be created ");
-                dgcanopia = spFile.Groups.Create("CANOPIA");
+                dgcanopia = spFile.Groups.Create(groupName);
             }
             return dgcanopia;
         }
@@ -535,6 +536,37 @@ namespace canopia_lib
 
         }
 
+        public static void deleteDataOnElementDisplay(Document doc, Element window, Guid guid, List<string> log)
+        {
+
+            Schema windowdataschema = Schema.Lookup(guid);
+            Entity entity = window.GetEntity(windowdataschema);
+
+            if (entity != null)
+            {
+                try
+                {
+
+                    IList<ElementId> temp = entity.Get<IList<ElementId>>("ShapeId");
+
+                    foreach (ElementId elementid in temp)
+                    {
+                        doc.Delete(elementid);
+
+                    }
+
+                    //window.get_Parameter(sfaguid).Set(-1.0);
+                    window.DeleteEntity(windowdataschema);
+                }
+                catch
+                {
+                    log.Add(" Clear : get Entity failled");
+                }
+            }
+
+        }
+
+
         class XyzEqualityComparer : IEqualityComparer<XYZ>
         {
             public bool Equals(XYZ p, XYZ q)
@@ -548,6 +580,7 @@ namespace canopia_lib
             }
         }
     }
-
 }
+
+
 

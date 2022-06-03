@@ -18,11 +18,14 @@ namespace canopia_lib
 
         public static (bool, Guid) createSharedParameterForWindows(Document doc, Application app, List<string> log)
         {
-
-            DefinitionFile spFile = app.OpenSharedParameterFile();
-            log.Add(" Number of definition groups  " + spFile.Groups.Count());
-
-            DefinitionGroup dgcanopia = utils.CANOPIAdefintionGroup(doc, app, log);
+            DefinitionGroup dgcanopia;
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start("SFA shared parameter creation");
+                dgcanopia = utils.CANOPIAdefintionGroup(doc, app, log);
+                t.Commit();
+            }
+            
 
            
             // shadow fraction area

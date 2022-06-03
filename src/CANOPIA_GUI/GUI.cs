@@ -18,14 +18,12 @@ namespace canopia_gui
     [Journaling(JournalingMode.NoCommandData)]
     public class gui : IExternalApplication
     {
-        string tab_name = " Canopia ";
-        string shadow_panel_name = "Shadow Analysis";
-
+        
         shadow_computation shadow_computer = new shadow_computation();
 
         public bool shadow_computer_initialized()
         {
-            TaskDialog.Show("CANOPIA", " CANOPIA HELLOdzedzedezdezd ");
+            TaskDialog.Show("CANOPIA", " CANOPIA HELLO");
             return true;
         }
 
@@ -44,7 +42,13 @@ namespace canopia_gui
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
-            
+
+            string tab_name = "Canopia";
+            string windowShadowPanelName = "Window shadow";
+            string wallShadowPanelName = "Wall shadow";
+            string ventilationPanelName = "Natural ventilation";
+
+
             // Register related events
             try
             {
@@ -54,50 +58,78 @@ namespace canopia_gui
             {
                 log.Add( ex.ToString());
             }
-            RibbonPanel panel = null;
-            List<RibbonPanel> panelList = application.GetRibbonPanels();
+            
 
-            foreach(RibbonPanel pnl in panelList)
-            {
-                if( pnl.Name == shadow_panel_name)
-                {
-                    panel = pnl;
-                    break;
-                }
-            }
-            if ( panel == null )
-            {
-                panel = application.CreateRibbonPanel(tab_name, shadow_panel_name);
-            }
 
-            //typeof(ComputeAndDisplayShadow).Assembly;
-            PushButtonData pushbdata = new PushButtonData("Compute shadow",
-                "Compute Shadows",
+            // Creation of the shadow on window panel
+            // 3 buttons : compute, hide/show, clear
+            RibbonPanel windowShadowPanel = application.CreateRibbonPanel(tab_name, windowShadowPanelName);
+                        
+            PushButtonData pushbdata = new PushButtonData("Compute",
+                "Compute",
                 Assembly.GetExecutingAssembly().Location,
                 "canopia_gui.ComputeAndDisplayShadow");
 
-            PushButton button = panel.AddItem(pushbdata) as PushButton;
+            PushButton button = windowShadowPanel.AddItem(pushbdata) as PushButton;
+            button.Enabled = true;
+
+
+
+            pushbdata = new PushButtonData("Hide/show",
+               "Hide/show",
+               Assembly.GetExecutingAssembly().Location,
+               "canopia_gui.HideShowShadow");
+
+            button = windowShadowPanel.AddItem(pushbdata) as PushButton;
+            button.Enabled = true;
+
+
+
+            pushbdata = new PushButtonData("Clear",
+               "Clear",
+               Assembly.GetExecutingAssembly().Location,
+               "canopia_gui.Clear");
+
+            button = windowShadowPanel.AddItem(pushbdata) as PushButton;
             button.Enabled = true;
 
 
 
             
-            PushButtonData pushbdata2 = new PushButtonData(" Hide/show",
+            // Creation of the shadow on wall panel
+            // 3 buttons : compute, hide/show, clear
+            RibbonPanel wallShadowPanel = application.CreateRibbonPanel(tab_name, wallShadowPanelName);
+
+
+            pushbdata = new PushButtonData("Compute",
+                "Compute",
+                Assembly.GetExecutingAssembly().Location,
+                "canopia_gui.ComputeAndDisplayShadowWall");
+
+            button = wallShadowPanel.AddItem(pushbdata) as PushButton;
+            button.Enabled = true;
+
+
+
+            pushbdata = new PushButtonData(" Hide/show",
                "Hide/show",
                Assembly.GetExecutingAssembly().Location,
-               "canopia_gui.HideShowShadow");
+               "canopia_gui.HideShowShadowWall");
 
-            PushButton button2 = panel.AddItem(pushbdata2) as PushButton;
-            button2.Enabled = true;
+            button = wallShadowPanel.AddItem(pushbdata) as PushButton;
+            button.Enabled = true;
 
 
-            PushButtonData pushbdata3 = new PushButtonData(" Clear ",
+
+            pushbdata = new PushButtonData(" Clear ",
                "Clear",
                Assembly.GetExecutingAssembly().Location,
-               "canopia_gui.Clear");
+               "canopia_gui.ClearWall");
 
-            PushButton button3 = panel.AddItem(pushbdata3) as PushButton;
-            button3.Enabled = true;
+            button = wallShadowPanel.AddItem(pushbdata) as PushButton;
+            button.Enabled = true;
+            
+            
 
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
             return Result.Succeeded;

@@ -206,8 +206,9 @@ namespace canopia_nogui
             //List<Solid> shadow_candidates;
             //double prox_max = 0.0;
 
-
-
+            Dictionary<ElementId, List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>> resByRoom =
+                new Dictionary<ElementId, List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>>();
+            ElementId roomId;
             foreach (ElementId key in exterior_wall.Keys)
             {
                 foreach ((Face, Solid, Room) temp in exterior_wall[key])
@@ -215,25 +216,37 @@ namespace canopia_nogui
                     results = shadow_computation.ComputeShadowOnWall(doc, temp.Item1, temp.Item2, sun_dir, ref log);
                     resultslist.Add(results);
 
+                    roomId = temp.Item3.Id;
+                    if ( resByRoom.Keys.Contains(roomId) )
+                    {
+                        resByRoom[roomId].AddRange(results);
+                    }
+                    else
+                    {
+                        resByRoom.Add(roomId,results);
+                    }
+
                 }
-            }// end foreach Room
+            }
+
+
             using (Transaction transaction = new Transaction(doc, "shadow_display"))
             {
                 transaction.Start();
-                foreach (var res in resultslist)
+                
+                foreach (ElementId key in resByRoom.Keys)
                 {
-
-                    try
-                    {
-                        win_ref_display = shadow_computation.DisplayShadow(doc, res, log);
-                    }
-                    catch (Exception e)
-                    {
-                        log.Add("           Display Extrusion failled (exception) " + e.ToString());
-                    }
-
+                        try
+                        {
+                            win_ref_display = shadow_computation.DisplayShadow(doc, resByRoom[key], log);
+                        }
+                        catch (Exception e)
+                        {
+                            log.Add("           Display Extrusion failled (exception) " + e.ToString());
+                        }
 
                 }
+
                 transaction.Commit();
             }
 
@@ -282,7 +295,7 @@ namespace canopia_nogui
                 natural_ventilation.display_opening(doc,results,ref log);
                 foreach((ElementId id,double or) in results.Keys.Zip(openingRatios,(first,second)=>(first,second)))
                 {
-                    log.Add(" Element found " + doc.GetElement(id).Name);
+                   // log.Add(" Element found " + doc.GetElement(id).Name);
                     doc.GetElement(id).get_Parameter(guid).Set(or);
                 }
                 //window.get_Parameter(sfaguid).Set(sfa);
