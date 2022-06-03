@@ -653,6 +653,250 @@ namespace canopia_gui
     }
 
 
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    [Journaling(JournalingMode.NoCommandData)]
+    class ComputeAndDisplayVentilation : IExternalCommand
+    {
+
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "LogGUI.log");
+            List<string> log = new List<string>();
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
+            //File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+
+            UIApplication uiapp = commandData.Application;
+            Document doc = uiapp.ActiveUIDocument.Document;
+            View view = doc.ActiveView;
+            Application app = uiapp.Application;
+
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+
+            List<ElementId> all_ref_display = new List<ElementId>();
+            Guid ESguid = utils.createDataStorageDisplay(doc, log);
+
+
+            Guid guid;
+            bool spcreationOK = false;
+            (spcreationOK, guid) = utils_room.createSharedParameterForRooms(doc, app, log);
+            log.Add(" SP creation ok ? " + spcreationOK + "  guid " + guid);
+
+            Dictionary<ElementId, List<ElementId>> id_display;
+
+            Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
+            List<double> openingRatios = natural_ventilation.openingRatio(doc, results, ref log);
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start("Display opening");
+                id_display = natural_ventilation.display_opening(doc, results, ref log);
+                foreach ((ElementId id, double or) in results.Keys.Zip(openingRatios, (first, second) => (first, second)))
+                {
+                    // log.Add(" Element found " + doc.GetElement(id).Name);
+                    doc.GetElement(id).get_Parameter(guid).Set(or);
+                    utils.storeDataOnElementDisplay(doc, doc.GetElement(id), id_display[id], ESguid, log);
+
+                }
+                //window.get_Parameter(sfaguid).Set(sfa);
+
+                t.Commit();
+            }
+
+
+
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
+            File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+            return Result.Succeeded;
+
+        }
+
+    }
+
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    [Journaling(JournalingMode.NoCommandData)]
+    class HideShowVentilation : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "LogGUI.log");
+            List<string> log = new List<string>();
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
+            //File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+
+            UIApplication uiapp = commandData.Application;
+            Document doc = uiapp.ActiveUIDocument.Document;
+            View view = doc.ActiveView;
+            Application app = uiapp.Application;
+            //shadow_computation shadow_computer = new shadow_computation();
+            //Guid ESguid = shadow_computer.ESGuid;
+
+            Options options = new Options();
+            options.ComputeReferences = true;
+            FilteredElementCollector collector_w = new FilteredElementCollector(doc);
+            ICollection<Element> rooms = collector_w.OfCategory(BuiltInCategory.OST_Rooms).ToElements();
+
+            List<ElementId> tohide = new List<ElementId>();
+            List<ElementId> toshow = new List<ElementId>();
+
+            Schema dataschema = null;
+            foreach (Schema schem in Schema.ListSchemas())
+            {
+                log.Add(schem.SchemaName);
+                if (schem.SchemaName == "canopiaDisplayData")
+                {
+                    dataschema = schem;
+                    log.Add(" schema found");
+                    break;
+                }
+            }
+            //File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+            if (dataschema == null)
+            {
+                return Result.Failed;
+            }
+            Field field = dataschema.GetField("ShapeId");
+
+            //log.Add(" Field found "+ field.FieldName);
+
+            foreach (Element room in rooms)
+            {
+
+                Entity entity = room.GetEntity(dataschema);
+                //log.Add(" entity found "+ entity.IsValid());
+
+                if (entity != null)
+                {
+                    try
+                    {
+                        IList<ElementId> temp = entity.Get<IList<ElementId>>(field);
+                        foreach (ElementId elementid in temp)
+                        {
+                            Element el = doc.GetElement(elementid);
+                            if (el.IsHidden(view))
+                                toshow.Add(elementid);
+                            else
+                                tohide.Add(elementid);
+
+                        }
+                    }
+                    catch
+                    {
+                        log.Add(" Get entity failled ");
+                    }
+
+                }
+            }
+
+            using (Transaction t = new Transaction(doc, "hideShow"))
+            {
+                t.Start();
+
+                if (tohide.Count > 0)
+                    view.HideElements(tohide);
+
+                if (toshow.Count > 0)
+                    view.UnhideElements(toshow);
+                t.Commit();
+            }
+
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
+            File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+            return Result.Succeeded;
+
+        }
+
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    [Journaling(JournalingMode.NoCommandData)]
+    class ClearVentilation : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "LogGUI.log");
+            List<string> log = new List<string>();
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start CLEAR program at .\r\n", DateTime.Now));
+            //File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+
+            UIApplication uiapp = commandData.Application;
+            Document doc = uiapp.ActiveUIDocument.Document;
+            View view = doc.ActiveView;
+            Application app = uiapp.Application;
+            shadow_computation shadow_computer = new shadow_computation();
+            //Guid ESguid = shadow_computer.ESGuid;
+
+            Options options = new Options();
+            options.ComputeReferences = true;
+            FilteredElementCollector collector_w = new FilteredElementCollector(doc);
+            ICollection<Element> rooms = collector_w.OfCategory(BuiltInCategory.OST_Rooms).ToElements();
+
+
+            // Data Extensible storage 
+            Schema windowdataschema = null;
+            foreach (Schema schem in Schema.ListSchemas())
+            {
+                log.Add(schem.SchemaName);
+                if (schem.SchemaName == "canopiaDisplayData")
+                {
+                    windowdataschema = schem;
+
+                    break;
+                }
+            }
+            if (windowdataschema == null)
+            {
+                return Result.Failed;
+            }
+            ////
+
+
+
+
+            using (Transaction t = new Transaction(doc, "Clear"))
+            {
+                t.Start();
+                foreach (Element room in rooms)
+                {
+
+                    //window.get_Parameter(sfaguid).Set(-1.0);
+
+                    Entity entity = room.GetEntity(windowdataschema);
+                    utils.deleteDataOnElementDisplay(doc, room, windowdataschema.GUID, log);
+
+                }
+
+                t.Commit();
+            }
+
+
+
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
+            File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+            return Result.Succeeded;
+
+        }
+
+    }
+
+
 }
 
 

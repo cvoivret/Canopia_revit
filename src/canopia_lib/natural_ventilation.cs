@@ -24,11 +24,6 @@ namespace canopia_lib
             ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_Windows);
 
 
-            
-
-            
-            
-            
             Solid wallSolid = null;
             List<Solid> openingSolids = new List<Solid>();
             //List<Solid> solids2 = new List<Solid>();
@@ -230,7 +225,7 @@ namespace canopia_lib
 
 
 
-        public static void display_opening(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
+        public static Dictionary<ElementId, List<ElementId>> display_opening(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
         {
             FilteredElementCollector fillPatternElementFilter = new FilteredElementCollector(doc);
             fillPatternElementFilter.OfClass(typeof(FillPatternElement));
@@ -252,6 +247,8 @@ namespace canopia_lib
             ogs.SetSurfaceForegroundPatternColor(openingColor);
             ogs.SetCutForegroundPatternColor(openingColor);
 
+            Dictionary<ElementId,List<ElementId>> iddict= new Dictionary<ElementId , List<ElementId>>();
+
 
             List<Face> displayed = new List<Face>();
             Solid wall = null;
@@ -259,6 +256,10 @@ namespace canopia_lib
             double ext_length = 1.0;
            foreach (ElementId key in results.Keys)
            {
+                    if(! iddict.ContainsKey(key))
+                    {
+                        iddict.Add(key, new List<ElementId>());
+                    }
                     //log.Add(" Room name " + doc.GetElement(key).Name);
                     foreach ((Face, Face,ElementId) ff in results[key])
                     {
@@ -268,6 +269,7 @@ namespace canopia_lib
                         ds.ApplicationId = "Application id";
                         ds.ApplicationDataId = "Geometry object id";
                         ds.SetShape(new GeometryObject[] { wall });
+                        iddict[key].Add(ds.Id);
                         doc.ActiveView.SetElementOverrides(ds.Id, ogss);
 
                         opening = GeometryCreationUtilities.CreateExtrusionGeometry(ff.Item2.GetEdgesAsCurveLoops(), ff.Item2.ComputeNormal(new UV(0.5, 0.5)), 1.1*ext_length);
@@ -276,11 +278,12 @@ namespace canopia_lib
                         ds.ApplicationDataId = "Geometry object id";
                         ds.SetShape(new GeometryObject[] { opening });
                         doc.ActiveView.SetElementOverrides(ds.Id, ogs);
+                        iddict[key].Add(ds.Id);
                     }
                 
             }
 
-
+           return iddict;
         }
     }
 }
