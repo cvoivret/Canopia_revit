@@ -28,7 +28,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "WindowShadow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
@@ -155,7 +155,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "HideWindowShadow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
@@ -260,7 +260,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "ClearWindowShadow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start CLEAR program at .\r\n", DateTime.Now));
@@ -358,7 +358,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "WallShadow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
@@ -383,7 +383,7 @@ namespace canopia_gui
 
             bool spcreationOK;
             Guid sfaguid, ESguid;
-            (spcreationOK, sfaguid) = utils_room.createSharedParameterForRooms(doc, app, log);
+            //(spcreationOK, sfaguid) = utils_room.createSharedParameterForRooms(doc, app, log);
             ESguid = utils.createDataStorageDisplay(doc, log);
 
             // collect room and purge
@@ -484,7 +484,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "HideWallShadow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
@@ -585,7 +585,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "ClearWallShadow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start CLEAR program at .\r\n", DateTime.Now));
@@ -664,11 +664,11 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "Ventilation.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
-            //File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+            File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
             UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument.Document;
@@ -728,7 +728,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "HideVentilation.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
@@ -829,7 +829,7 @@ namespace canopia_gui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "LogGUI.log");
+               "ClearVentilation.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start CLEAR program at .\r\n", DateTime.Now));

@@ -9,6 +9,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.ApplicationServices;
 using canopia_lib;
+using Serilog;
 
 namespace canopia_gui
 {
@@ -18,41 +19,32 @@ namespace canopia_gui
     [Journaling(JournalingMode.NoCommandData)]
     public class gui : IExternalApplication
     {
-        
-        shadow_computation shadow_computer = new shadow_computation();
+        Serilog.Core.Logger _logger = new LoggerConfiguration().CreateLogger();
 
- 
 
         // Implement the OnStartup method to register events when Revit starts.
         public Result Execute(ExternalCommandData commandData,ref string message,ElementSet elements)
         {
-            TaskDialog.Show("CANOPIA"," CANOPIA HELLO ");
+            
             return Result.Succeeded;
         }
         
         public Result OnStartup(UIControlledApplication application)
         {
-            string filename = Path.Combine(Path.GetDirectoryName(
-               Assembly.GetExecutingAssembly().Location),
-               "CANOPIAGUIlog.log");
-            List<string> log = new List<string>();
-
-            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
+           
 
             string tab_name = "Canopia";
             string windowShadowPanelName = "Window shadow";
             string wallShadowPanelName = "Wall shadow";
             string ventilationPanelName = "Natural ventilation";
 
-
-            
             try
             {
                 application.CreateRibbonTab(tab_name);
             }
             catch(Exception ex)
             {
-                log.Add( ex.ToString());
+                
             }
             
 
@@ -160,8 +152,6 @@ namespace canopia_gui
             button = ventilationPanel.AddItem(pushbdata) as PushButton;
             button.Enabled = true;
 
-
-            File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
             return Result.Succeeded;
 
         }

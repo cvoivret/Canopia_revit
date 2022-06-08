@@ -134,15 +134,9 @@ namespace canopia_lib
                 {
                     wall_area.Add(ff.Item1.Area);
                     Element window = doc.GetElement(ff.Item3);
-                    if (window != null)
-                    {
-                        // lookfor the number of OST_WindowsFrameMullionProjection elements
-                        //
-                    }
-                    // Need to multiply by the porosity ration described in the norm
-                    // depend on opening properties
-                    // 
-                    opening_area.Add(ff.Item2.Area);
+                    double porosity = utils_window.infer_window_porosity(doc, window, ref log);
+                    opening_area.Add(ff.Item2.Area * porosity );
+                    log.Add(" Window name : "+window.Name + " infered porosity "+ porosity);
                 }
 
                 int largestOpeningIdx = opening_area.IndexOf(opening_area.Max());

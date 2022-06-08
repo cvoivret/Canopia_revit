@@ -468,7 +468,7 @@ namespace canopia_lib
 
             string groupName = "Canopia";
             DefinitionFile spFile = app.OpenSharedParameterFile();
-            log.Add(" Number of definition groups  " + spFile.Groups.Count());
+            //log.Add(" Number of definition groups  " + spFile.Groups.Count());
 
             DefinitionGroup dgcanopia = spFile.Groups.get_Item(groupName);
             if (dgcanopia != null)
@@ -490,7 +490,7 @@ namespace canopia_lib
             Schema dataschema = null;
             foreach (Schema schem in Schema.ListSchemas())
             {
-                log.Add(schem.SchemaName);
+               // log.Add(schem.SchemaName);
                 if (schem.SchemaName == SchemaName)
                 {
                     dataschema = schem;

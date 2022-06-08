@@ -6,6 +6,8 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.DB.Architecture;
 using Autodesk.Revit.DB.Analysis;
 
+using Serilog;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,7 +35,7 @@ namespace canopia_nogui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "voivretlog.log");
+               "no_guiWindow.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start Shadow at .\r\n", DateTime.Now));
@@ -180,7 +182,7 @@ namespace canopia_nogui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "wall_shadow.log");
+               "no_guiWall.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
@@ -274,14 +276,16 @@ namespace canopia_nogui
 
             string filename = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
-               "ventilation.log");
+               "no_guiVentilation.log");
             List<string> log = new List<string>();
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
 
-            Guid guid;
+
+
+             Guid guid;
             bool spcreationOK = false;
             (spcreationOK, guid) = utils_room.createSharedParameterForRooms(doc, app, log);
             log.Add(" SP creation ok ? " + spcreationOK + "  guid " + guid);
