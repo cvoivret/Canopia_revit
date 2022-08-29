@@ -14,8 +14,7 @@ namespace canopia_lib
 {
     public class utils_window
     {
-
-
+        /*
         public static (bool, Guid) createSharedParameterForWindows(Document doc, Application app, List<string> log)
         {
             DefinitionGroup dgcanopia;
@@ -69,7 +68,7 @@ namespace canopia_lib
 
             return (instanceBindOK, sfadefex.GUID);
 
-        }
+        }*/
 
         
 
@@ -243,6 +242,8 @@ namespace canopia_lib
             //Dictionary<ElementId,Face> faces = new Dictionary<ElementId, Face>();
             List<Face> facesToBeExtruded = new List<Face>();
             List<Solid> solidlist = new List<Solid>();
+            XYZ wall_normal = new XYZ();
+            
             Options options = new Options();
             options.ComputeReferences = true;
 
@@ -256,27 +257,49 @@ namespace canopia_lib
             //Extract the normal of the wall hosting the window
             Element window_host = elFamInst.Host;
             Wall w = window_host as Wall;
+            if (w == null)
+            {
+                return (solidlist, facesToBeExtruded, wall_normal);
+            }
 
             LocationCurve wallLocation = w.Location as LocationCurve;
             XYZ pt1 = wallLocation.Curve.GetEndPoint(0);//[0];
             XYZ pt2 = wallLocation.Curve.GetEndPoint(1);//[1];
-            XYZ wall_normal = new XYZ();// w.Orientation;//Not consistent
+            
             double dot2;
             //log.Add("Hosted by" + window_host.Name + " ID " + window_host.Id);
 
             // Retrieves the glass material label
             String glasslabel = LabelUtils.GetLabelFor(BuiltInCategory.OST_WindowsGlassProjection);
 
-            List<Solid> solids = utils.GetSolids(window, true, log);
+            List<Solid> solids = new List<Solid>();
+            try
+            {
+
+                solids = utils.GetSolids(window, true, log);
+            }
+            catch
+            {
+                log.Add(" Faillure to obtain solids from "+window.Name);
+            }
+            log.Add(" Number of solids " + solids.Count()); 
+
             List<Solid> glassSolid = new List<Solid>();
             foreach (Solid solid in solids)
             {
-                Material mat = doc.GetElement(solid.Faces.get_Item(0).MaterialElementId) as Material;
-                if (mat.MaterialClass == glasslabel)
-                {
-                    glassSolid.Add(solid);
-                    //log.Add("  Glassss solid found ");
-                }
+                ElementId matId = solid.Faces.get_Item(0).MaterialElementId;
+                if (matId.IntegerValue == -1)
+                    continue;
+                
+                Material mat = doc.GetElement(matId) as Material;
+                    //log.Add(" mat class " + mat.Name + " " + mat.MaterialCategory);
+                    if (mat.MaterialClass == glasslabel)
+                    {
+                        glassSolid.Add(solid);
+                        log.Add("  Glassss solid found ");
+                    }
+               
+                
             }
 
             foreach (Solid solid in glassSolid)

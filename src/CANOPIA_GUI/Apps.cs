@@ -48,17 +48,22 @@ namespace canopia_gui
             //List<(Face, Face, Shadow_Configuration, Computation_status)> result;
             // to track of created volumes for display/hide
             List<ElementId> win_ref_display;
-            List<ElementId> all_ref_display = new List<ElementId>();
 
             SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
             XYZ sun_dir;
             sun_dir = utils.GetSunDirection(view);
 
             // create a shared parameter to attach shadow analysis result to each window
-            
+
             bool spcreationOK;
             Guid sfaguid, ESguid;
-            (spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
+            (spcreationOK, sfaguid) = utils.createSharedParameter(doc,
+                                                                    app,
+                                                                    "shadowFractionArea",
+                                                                    "Fraction of shadowed glass surface for direct sunlight only",
+                                                                   doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows),
+                                                                   ref log);
+            //(spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
             utils.CANOPIAdefintionGroup(doc, app, log);
             ESguid = utils.createDataStorageDisplay(doc, log);
 
@@ -78,11 +83,11 @@ namespace canopia_gui
             }
             else
             {
-                FilteredElementCollector collector_w = new FilteredElementCollector(doc,selectedIds);
+                FilteredElementCollector collector_w = new FilteredElementCollector(doc, selectedIds);
                 windows = collector_w.OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_Windows).ToElements();
             }
 
-            if(windows.Count==0)
+            if (windows.Count == 0)
             {
                 TaskDialog.Show("Revit", "No window to compute shadow (select some or select nothing)");
             }
@@ -96,43 +101,45 @@ namespace canopia_gui
                 t.Start();
                 foreach (Element window in windows)
                 {
-                    utils.deleteDataOnElementDisplay(doc, window,ESguid, log);
+                    utils.deleteDataOnElementDisplay(doc, window, ESguid, log);
                 }
                 t.Commit();
             }
+
+            List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>> lresults =
+                new List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>>();
 
 
             foreach (Element window in windows)
             {
                 results = shadow_computation.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computation.AnalyzeShadowOnWindow(results);
+                lresults.Add(results);
+            }
 
-                using (Transaction t = new Transaction(doc))
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start("Set SFA & display");
+                for (int i = 0; i < windows.Count; i++)
                 {
-                    t.Start("Set SFA");
+                    Element window = windows.ToList()[i];
+                    results = lresults[i];
+                    double sfa = shadow_computation.AnalyzeShadowOnWindow(results);
                     window.get_Parameter(sfaguid).Set(sfa);
-                    t.Commit();
-                }
-                using (Transaction transaction = new Transaction(doc, "shadow_display"))
-                {
-                    transaction.Start();
                     try
                     {
 
-                        win_ref_display = shadow_computation.DisplayShadow(doc,results, log);
+                        win_ref_display = shadow_computation.DisplayShadow(doc, results, log);
                         utils.storeDataOnElementDisplay(doc, window, win_ref_display, ESguid, log);
-                        all_ref_display.AddRange(win_ref_display);
-
+                        
                     }
                     catch (Exception e)
                     {
                         log.Add("           Display Extrusion failled (exception) " + e.ToString());
                     }
 
-                    //view.HideElements(all_ref_display);
-
-                    transaction.Commit();
+                   
                 }
+                t.Commit();
 
             }
 
@@ -221,10 +228,10 @@ namespace canopia_gui
                     {
                         log.Add(" Get entity failled ");
                     }
-                    
-                   
-                   
-                    
+
+
+
+
 
                 }
             }
@@ -289,11 +296,11 @@ namespace canopia_gui
                 if (schem.SchemaName == "canopiaDisplayData")
                 {
                     windowdataschema = schem;
-                    
+
                     break;
                 }
             }
-            if( windowdataschema == null)
+            if (windowdataschema == null)
             {
                 return Result.Failed;
             }
@@ -312,7 +319,7 @@ namespace canopia_gui
                     ExternalDefinition sfaextdef = sfadef as ExternalDefinition;
                     sfaguid = sfaextdef.GUID;
                 }
-                
+
             }
             if (sfaguid == Guid.Empty)
             {
@@ -326,11 +333,11 @@ namespace canopia_gui
                 foreach (Element window in windows)
                 {
 
-                    window.get_Parameter(sfaguid).Set(-1.0); 
-                    
+                    window.get_Parameter(sfaguid).Set(-1.0);
+
                     Entity entity = window.GetEntity(windowdataschema);
                     utils.deleteDataOnElementDisplay(doc, window, windowdataschema.GUID, log);
-                    
+
                 }
 
                 t.Commit();
@@ -377,7 +384,7 @@ namespace canopia_gui
             List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
 
             shadow_computation shadow_computer = new shadow_computation();
-          
+
 
             // create a shared parameter to attach shadow analysis result to each window
 
@@ -409,9 +416,9 @@ namespace canopia_gui
             List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>> resultslist =
                 new List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>>();
 
-           
 
-            
+
+
             SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
             XYZ sun_dir;
             sun_dir = utils.GetSunDirection(view);
@@ -451,7 +458,7 @@ namespace canopia_gui
                     try
                     {
                         ref_display = shadow_computation.DisplayShadow(doc, resByRoom[key], log);
-                        utils.storeDataOnElementDisplay(doc,doc.GetElement(key),ref_display,ESguid,log);
+                        utils.storeDataOnElementDisplay(doc, doc.GetElement(key), ref_display, ESguid, log);
 
                     }
                     catch (Exception e)
@@ -603,7 +610,7 @@ namespace canopia_gui
             FilteredElementCollector collector_w = new FilteredElementCollector(doc);
             ICollection<Element> rooms = collector_w.OfCategory(BuiltInCategory.OST_Rooms).ToElements();
 
-            
+
             // Data Extensible storage 
             Schema windowdataschema = null;
             foreach (Schema schem in Schema.ListSchemas())
@@ -623,7 +630,7 @@ namespace canopia_gui
             ////
 
 
-           
+
 
             using (Transaction t = new Transaction(doc, "Clear"))
             {
@@ -683,7 +690,14 @@ namespace canopia_gui
 
             Guid guid;
             bool spcreationOK = false;
-            (spcreationOK, guid) = utils_room.createSharedParameterForRooms(doc, app, log);
+            string paramName = "openingRatio";
+            string paramDesc = "Opening ratio (following RTAADOM defition for a given room)";
+            (spcreationOK, guid) = utils.createSharedParameter(doc,
+                                                       app,
+                                                       paramName,
+                                                       paramDesc,
+                                                       doc.Settings.Categories.get_Item(BuiltInCategory.OST_Rooms),
+                                                      ref log);
             log.Add(" SP creation ok ? " + spcreationOK + "  guid " + guid);
 
             Dictionary<ElementId, List<ElementId>> id_display;

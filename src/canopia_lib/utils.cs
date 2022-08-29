@@ -473,14 +473,72 @@ namespace canopia_lib
             DefinitionGroup dgcanopia = spFile.Groups.get_Item(groupName);
             if (dgcanopia != null)
             {
-                log.Add(" Defintion group canopia found !!! ");
+                log.Add("Defintion group CANOPIA found");
             }
             else
             {
-                log.Add(" CANOPIA group must be created ");
-                dgcanopia = spFile.Groups.Create(groupName);
+                string transactionName = "Creation CANOPIA dg";
+                using (Transaction t = new Transaction(doc))
+                {
+                    t.Start(transactionName);
+                    dgcanopia = spFile.Groups.Create(groupName);
+                    t.Commit();
+                }
+                
+                log.Add("CANOPIA defnition group has been created ");
             }
             return dgcanopia;
+        }
+
+        public static (bool, Guid) createSharedParameter(Document doc, Application app,string paramName,string description, Category cat, ref List<string> log)
+        {
+            DefinitionGroup dgcanopia = utils.CANOPIAdefintionGroup(doc, app, log);
+                                                          
+            Definition def = dgcanopia.Definitions.get_Item(paramName);
+            string transactionName= null;
+
+            if (def != null)
+            {
+                log.Add(String.Format("Defintion of {0} found", paramName));
+            }
+            else
+            {
+                log.Add(String.Format("Defintion of {0} must be created", paramName));
+                ExternalDefinitionCreationOptions defopt = new ExternalDefinitionCreationOptions(paramName, SpecTypeId.Number);
+                defopt.UserModifiable = false;//only the API can modify it
+                defopt.HideWhenNoValue = true;
+                defopt.Description = description;
+                //"Fraction of shadowed glass surface for direct sunlight only";
+                transactionName = String.Format("Creation of the shared parameter {0}", paramName);
+                using (Transaction t = new Transaction(doc))
+                {
+                    t.Start(transactionName);
+                    def = dgcanopia.Definitions.Create(defopt);
+                    t.Commit();
+                }
+
+            }
+            ExternalDefinition defex = def as ExternalDefinition;
+
+            //Category cat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows);
+            CategorySet catSet = app.Create.NewCategorySet();
+            catSet.Insert(cat);
+            InstanceBinding instanceBinding = app.Create.NewInstanceBinding(catSet);
+
+
+            // Get the BingdingMap of current document.
+            BindingMap bindingMap = doc.ParameterBindings;
+            bool instanceBindOK = false;
+            transactionName = String.Format("Binding {0}", paramName);
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start(transactionName);
+                instanceBindOK = bindingMap.Insert(def, instanceBinding);
+                t.Commit();
+            }
+
+            return (instanceBindOK, defex.GUID);
+
         }
         public static Guid createDataStorageDisplay(Document doc, List<string> log)
         {

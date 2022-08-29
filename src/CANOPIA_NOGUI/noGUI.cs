@@ -40,6 +40,32 @@ namespace canopia_nogui
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start Shadow at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+
+            string path = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "no_guiWindow22.log");
+
+            // Delete the file if it exists.
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            //Create the file.
+            using (FileStream fs = File.Create(path))
+            {
+                
+                using (StreamWriter writer = new StreamWriter(fs))
+                {
+                    writer.Write("test");
+                    fs.Flush();
+                }
+
+
+            }
+
+
+
             UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument.Document;
             View view = doc.ActiveView;
@@ -58,7 +84,14 @@ namespace canopia_nogui
             // create a shared parameter to attach shadow analysis result to each window
             bool spcreationOK;
             Guid sfaguid, ESguid;
-            (spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
+            (spcreationOK, sfaguid) = utils.createSharedParameter(doc, 
+                                                                    app,
+                                                                    "shadowFractionArea",
+                                                                    "Fraction of shadowed glass surface for direct sunlight only",
+                                                                   doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows),
+                                                                   ref log);
+            //(spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
+
             ESguid = utils.createDataStorageDisplay(doc, log);
             //ESguid = shadow_computer.ESGuid;
             //Collect windows
@@ -69,26 +102,35 @@ namespace canopia_nogui
 
 
             List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
+            List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>> lresults =
+                new List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>>();
+
 
             foreach (Element window in windows)
             {
+                log.Add(" Window Name "+ window.Name + " Id " + window.Id); 
                 results = shadow_computation.ComputeShadowOnWindow(doc, window, sun_dir, log);
-                double sfa = shadow_computation.AnalyzeShadowOnWindow(results);
+                lresults.Add(results);
+            }
 
-                using (Transaction t = new Transaction(doc))
+            log.Add(" --------------     Display  ------------ ");
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start("Set SFA & display");
+                for (int i = 0; i < windows.Count; i++)
                 {
-                    t.Start("Set SFA");
+                    
+                    Element window = windows.ToList()[i];
+                    log.Add(" Window Name " + window.Name + " Id " + window.Id);
+
+                    results = lresults[i];
+                    double sfa = shadow_computation.AnalyzeShadowOnWindow(results);
                     window.get_Parameter(sfaguid).Set(sfa);
-                    t.Commit();
-                }
-                using (Transaction transaction = new Transaction(doc, "shadow_display"))
-                {
-                    transaction.Start();
                     try
                     {
+
                         win_ref_display = shadow_computation.DisplayShadow(doc, results, log);
                         utils.storeDataOnElementDisplay(doc, window, win_ref_display, ESguid, log);
-                        all_ref_display.AddRange(win_ref_display);
 
                     }
                     catch (Exception e)
@@ -96,65 +138,12 @@ namespace canopia_nogui
                         log.Add("           Display Extrusion failled (exception) " + e.ToString());
                     }
 
-                    //view.HideElements(all_ref_display);
-
-                    transaction.Commit();
-                }
-
-
-            }
-           /* List<ElementId> tohide = new List<ElementId>();
-            List<ElementId> toshow = new List<ElementId>();
-
-            Schema windowdata = null;
-            foreach (Schema schem in Schema.ListSchemas())
-            {
-                log.Add(schem.GUID + "  " + schem.SchemaName);
-                if (schem.SchemaName == "ShadowDataOnWindows")
-                {
-                    windowdata = schem;
-                    break;
-                }
-
-
-            }
-
-
-            foreach (Element window in windows)
-            {
-                Entity entity = window.GetEntity(Schema.Lookup(windowdata.GUID));
-                if (entity != null)
-                {
-                    IList<ElementId> temp = entity.Get<IList<ElementId>>("ShapeId");
-                    //view.HideElements(temp);
-
-                    foreach (ElementId elementid in temp)
-                    {
-                        Element el = doc.GetElement(elementid);
-                        if (el.IsHidden(view))
-                            toshow.Add(elementid);
-                        else
-                            tohide.Add(elementid);
-
-                    }
 
                 }
-            }
-            using (Transaction t = new Transaction(doc, "hideShow"))
-            {
-                t.Start();
-
-                if (tohide.Count > 0)
-                    view.HideElements(tohide);
-
-                if (toshow.Count > 0)
-                    view.UnhideElements(toshow);
                 t.Commit();
+
             }
-
-            */
-
-
+            
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
             File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
@@ -284,12 +273,17 @@ namespace canopia_nogui
 
 
 
-
-             Guid guid;
+            string paramName = "openingRatio";
+            string paramDesc = "Opening ratio (following RTAADOM defition for a given room)";
+            Guid guid;
             bool spcreationOK = false;
-            (spcreationOK, guid) = utils_room.createSharedParameterForRooms(doc, app, log);
-            log.Add(" SP creation ok ? " + spcreationOK + "  guid " + guid);
-
+           
+            (spcreationOK, guid) = utils.createSharedParameter(doc,
+                                                       app,
+                                                       paramName,
+                                                       paramDesc,
+                                                       doc.Settings.Categories.get_Item(BuiltInCategory.OST_Rooms),
+                                                      ref log);
 
             Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
             List<double> openingRatios = natural_ventilation.openingRatio(doc, results, ref log);

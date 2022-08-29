@@ -46,8 +46,15 @@
 
             double proximity_max = 0.0;
 
-            (glassSolids, glassFaces, true_normal) = utils_window.GetGlassSurfacesAndSolids2(doc, element, ref log);
-
+            try 
+            { 
+                (glassSolids, glassFaces, true_normal) = utils_window.GetGlassSurfacesAndSolids2(doc, element, ref log);
+            }
+            catch
+            {
+                //log.Add(" getglass surface fail ");
+                return temp_results;
+            }
             for (int k = 0; k < glassSolids.Count(); k++)
             {
                 gface = glassFaces[k];
@@ -239,6 +246,10 @@
                     }
 
                 }
+            }
+            if( total_glass_area<10e-10)
+            {
+                anyfaillure=true;
             }
 
             if (anyfaillure)
