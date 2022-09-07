@@ -8,7 +8,7 @@ Each functionnality is composed of three bricks : the core library, a revit comm
 
 ## TODO
 - add pictures on buttons for solar analysis
-- Ventilation : compute opening ratio for a wall, for a room, for a level
+- Ventilation : compute opening ratio for a level
 - clean and comment
 - Find a way to properly log
 
@@ -19,7 +19,8 @@ Open the solution in VScode and build it !
 ## Usage
 
 ## Screenshot
-
+![Shadow](/doc/Shadow_on_windows.png)
+![Opening](/doc/Opening_ratio_room.png)
 ## Requirements
 
 ## Licence
