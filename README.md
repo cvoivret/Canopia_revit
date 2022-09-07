@@ -1,9 +1,10 @@
 # CANOPIA REVIT project
 
 ## About
-This repos contains multiples projects to add functionnalities to Autodesk Revit.
+This repos contains  functionnalities to extends capabilities of Autodesk Revit.
 They have been developped during the CANOPIA Project in order to help architect and engineer to build better in tropical climate.
 Each functionnality is composed of three bricks : the core library, a revit command (without GUI), a revit extrenal app (with GUI).
+Explore and have fun.
 
 
 ## TODO
@@ -13,10 +14,11 @@ Each functionnality is composed of three bricks : the core library, a revit comm
 - Find a way to properly log
 
 
-## Compilation & installation
+## Compilation
 Open the solution in VScode and build it !
 
-## Usage
+## Installation
+Follow the instruction given by [Autodesk](https://knowledge.autodesk.com/search-result/caas/simplecontent/content/lesson-1-the-basic-plug.html) to properly set your environement with the addin manifest that you can find in the bin folder.
 
 ## Screenshot
 ![Shadow](/doc/Shadow_on_windows.png)
