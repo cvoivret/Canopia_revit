@@ -35,12 +35,14 @@ namespace canopia_lib
                 wall = doc.GetElement(id_w) as Wall;
                 IList<ElementId> dependentIds = wall.GetDependentElements(filter);
 
+                /*
                 foreach (ElementId id in dependentIds)
                 {
                     Element window = doc.GetElement(id) as Element;
-                    double ratio = utils_window.infer_window_porosity(doc, window, ref log);
-                    //log.Add(" infered porosity " + ratio);
+                    double porosity = utils_window.infer_window_porosity(doc, window, ref log);
+                    //log.Add(" infered porosity " + porosity);
                 }
+                */
 
                 //log.Add("       Number of dependent element in wall " + dependentIds.Count());
                 if (dependentIds.Count() == 0)

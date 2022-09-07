@@ -14,68 +14,15 @@ namespace canopia_lib
 {
     public class utils_window
     {
-        /*
-        public static (bool, Guid) createSharedParameterForWindows(Document doc, Application app, List<string> log)
-        {
-            DefinitionGroup dgcanopia;
-            using (Transaction t = new Transaction(doc))
-            {
-                t.Start("SFA shared parameter creation");
-                dgcanopia = utils.CANOPIAdefintionGroup(doc, app, log);
-                t.Commit();
-            }
-            
-
-           
-            // shadow fraction area
-            Definition sfadef = dgcanopia.Definitions.get_Item("shadowFractionArea");
-            if (sfadef != null)
-            {
-                log.Add(" ------Defintion SFA  found !!! ");
-            }
-            else
-            {
-                log.Add(" ------SFA Definition must be created ");
-                ExternalDefinitionCreationOptions defopt = new ExternalDefinitionCreationOptions("shadowFractionArea", SpecTypeId.Number);
-                defopt.UserModifiable = false;//only the API can modify it
-                defopt.HideWhenNoValue = true;
-                defopt.Description = "Fraction of shadowed glass surface for direct sunlight only";
-                using (Transaction t = new Transaction(doc))
-                {
-                    t.Start("SFA shared parameter creation");
-                    sfadef = dgcanopia.Definitions.Create(defopt);
-                    t.Commit();
-                }
-
-            }
-            ExternalDefinition sfadefex = sfadef as ExternalDefinition;
-
-            Category cat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows);
-            CategorySet catSet = app.Create.NewCategorySet();
-            catSet.Insert(cat);
-            InstanceBinding instanceBinding = app.Create.NewInstanceBinding(catSet);
-
-
-            // Get the BingdingMap of current document.
-            BindingMap bindingMap = doc.ParameterBindings;
-            bool instanceBindOK = false;
-            using (Transaction t = new Transaction(doc))
-            {
-                t.Start("SFA binding");
-                instanceBindOK = bindingMap.Insert(sfadef, instanceBinding);
-                t.Commit();
-            }
-
-            return (instanceBindOK, sfadefex.GUID);
-
-        }*/
-
-        
-
-
-
-
-
+        /// <summary>
+        /// Extract a geometrical informations from a element, considered as a window with glasses
+        /// </summary>
+        /// <param name="doc"></param>
+        /// <param name="window"></param>
+        /// <param name="log"></param>
+        /// <returns>
+        /// 
+        /// </returns>
         public static (List<Solid>, List<Face>, XYZ) GetGlassSurfacesAndSolids(Document doc, Element window, ref List<string> log)
         {
             //Dictionary<ElementId,Face> faces = new Dictionary<ElementId, Face>();
@@ -232,11 +179,20 @@ namespace canopia_lib
 
             }
 
-
             return (solidlist, facesToBeExtruded, wall_normal);
 
         }
-
+        /// <summary>
+        /// Extract a geometrical informations from a element, considered as a window with glasses
+        /// </summary>
+        /// <param name="doc"></param>
+        /// <param name="window"></param>
+        /// <param name="log"></param>
+        /// <returns>
+        /// List of glass pieces
+        /// List of each glass faces pointing trough the exterior
+        /// The computed wall normal (pointing trough the exterior)
+        /// </returns>
         public static (List<Solid>, List<Face>, XYZ) GetGlassSurfacesAndSolids2(Document doc, Element window, ref List<string> log)
         {
             //Dictionary<ElementId,Face> faces = new Dictionary<ElementId, Face>();
@@ -296,10 +252,9 @@ namespace canopia_lib
                     if (mat.MaterialClass == glasslabel)
                     {
                         glassSolid.Add(solid);
-                        log.Add("  Glassss solid found ");
+                        log.Add("  Glass solid found ");
                     }
-               
-                
+                            
             }
 
             foreach (Solid solid in glassSolid)
@@ -389,94 +344,28 @@ namespace canopia_lib
 
                         }
 
-
-
                     }
                 }
 
             }
             return (solidlist, facesToBeExtruded, wall_normal);
-
-            /*
-            // Get settings of current document
-            Settings documentSettings = doc.Settings;
-
-            // Get all categories of current document
-            Categories groups = documentSettings.Categories;
-            Category glassCategory = groups.get_Item(BuiltInCategory.OST_WindowsGlassProjection);
-            log.Add(" glass category " + glassCategory.Name);
-
-            log.Add("  Label for " + LabelUtils.GetLabelFor(BuiltInCategory.OST_WindowsGlassProjection));
-
-            
-            foreach (Solid solid in solids)
-            {
-                log.Add(" solid " + solid.Id);
-                foreach( Face face in solid.Faces)
-                {
-                    //Material mat = face.MaterialElementId) as Material;
-                    //log.Add(" material :: " + mat.Name+" category  parent : "+mat.MaterialCategory + " // "+mat.MaterialClass);
-                }
-            }
-
-
-
-            ParameterMap paramap = window.ParametersMap;
-            foreach (Parameter p in paramap)
-            {
-                log.Add(" name parameter " + p.Definition.Name);
-            }
-
-
-
-            
-
-            FilteredElementCollector collector_glass = new FilteredElementCollector(doc);
-            ICollection<Element> glassss = collector_glass.OfCategoryId(glassCategory.Id).ToElements();
-
-            
-
-            foreach (Element element in glassss)
-            {
-                log.Add(" element. name " + element.Category);
-            }
-
-            // Get family associated with this
-            FamilyInstance familyInstance = window as FamilyInstance;
-            Family family = familyInstance.Symbol.Family;
-
-            // Get Family document for family
-            Document familyDoc = doc.EditFamily(family);
-
-            FamilyManager fm = familyDoc.FamilyManager;
-            foreach (FamilyParameter fp in fm.GetParameters())
-            {
-                log.Add(" fp " + fp.Definition.Name + " " + fp.Definition.ParameterGroup.ToString());
-            }
-
-            */
-
-
-
-
-
-
+                        
         }
         public static double infer_window_porosity(Document doc, Element window, ref List<string> log)
         {
             Options options = new Options();
             options.ComputeReferences = true;
-            ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_WindowsFrameMullionProjection);
+            /*ElementCategoryFilter filter = new ElementCategoryFilter(BuiltInCategory.OST_WindowsFrameMullionProjection);
 
             FilteredElementCollector collector_w = new FilteredElementCollector(doc);
             ICollection<Element> mullions = collector_w.OfClass(typeof(FamilySymbol)).OfCategory(BuiltInCategory.OST_WindowsFrameMullionProjection).ToElements();
+            */
             //log.Add(" Inference of porosity ======== ");
 
             // Get the number of glass solid and centroid position
             // Based on that, infer the type of window
             (List<Solid>, List<Face>, XYZ) res = GetGlassSurfacesAndSolids2(doc, window, ref log);
 
-            
 
             if(res.Item1.Count()==0)
             {

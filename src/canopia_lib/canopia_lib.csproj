@@ -14,6 +14,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="utils_room.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Reference Include="RevitAPI">
 			<HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
 		</Reference>
