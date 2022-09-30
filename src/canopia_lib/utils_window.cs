@@ -236,9 +236,9 @@ namespace canopia_lib
             }
             catch
             {
-                log.Add(" Faillure to obtain solids from "+window.Name);
+                //log.Add(" Faillure to obtain solids from "+window.Name);
             }
-            log.Add(" Number of solids " + solids.Count()); 
+            //log.Add(" Number of solids " + solids.Count()); 
 
             List<Solid> glassSolid = new List<Solid>();
             foreach (Solid solid in solids)
@@ -252,7 +252,7 @@ namespace canopia_lib
                     if (mat.MaterialClass == glasslabel)
                     {
                         glassSolid.Add(solid);
-                        log.Add("  Glass solid found ");
+                        //log.Add("  Glass solid found ");
                     }
                             
             }

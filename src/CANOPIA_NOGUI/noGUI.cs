@@ -285,17 +285,25 @@ namespace canopia_nogui
                                                        doc.Settings.Categories.get_Item(BuiltInCategory.OST_Rooms),
                                                       ref log);
 
-            Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
-            List<double> openingRatios = natural_ventilation.openingRatio(doc, results, ref log);
+            IList<Room> rooms = utils.filterRoomList(doc,ref log);
+            IList<ElementId> wallsId = utils.getExteriorWallId(doc, ref log);
+            Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>>  data_inter = utils.intersectWallsAndRoom(doc, wallsId, rooms, ref log);
+            Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>)>>  complete_data= utils.AssociateWallPortionAndOpening(doc, data_inter, ref log);
+
+
+            
+            //Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
+            List<double> openingRatios = natural_ventilation.openingRatio2(doc, complete_data, ref log);
             using (Transaction t = new Transaction(doc))
             {
                 t.Start("Display opening");
-                natural_ventilation.display_opening(doc,results,ref log);
-                foreach((ElementId id,double or) in results.Keys.Zip(openingRatios,(first,second)=>(first,second)))
+                natural_ventilation.display_opening2(doc,complete_data,ref log);
+                //natural_ventilation.display_opening3(doc, data_inter, ref log);
+                /*foreach((ElementId id,double or) in results.Keys.Zip(openingRatios,(first,second)=>(first,second)))
                 {
                    // log.Add(" Element found " + doc.GetElement(id).Name);
                     doc.GetElement(id).get_Parameter(guid).Set(or);
-                }
+                }*/
                 //window.get_Parameter(sfaguid).Set(sfa);
 
                 t.Commit();

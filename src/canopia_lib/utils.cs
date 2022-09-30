@@ -227,6 +227,381 @@ namespace canopia_lib
             return solids;
         }
 
+        public static IList<Room> filterRoomList(Document doc, ref List<string> log)
+        {
+            RoomFilter filter = new RoomFilter();
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            IList<Element> all_rooms = collector.WherePasses(filter).ToElements();
+
+            //Filtering of rooms : area greater than xx, Room type not space
+            IList<Room> rooms = new List<Room>();
+            foreach (Element el in all_rooms)
+            {
+                Room r = el as Room;
+
+                //log.Add("----- Name  : " + r.Name + " Number " + r.Number);
+                //log.Add("       Location " + r.Location);
+                if (r.Location == null)
+                {
+                    //log.Add("          NULLLLL location ");
+                    continue;
+                }
+
+                //log.Add("       Area " + r.Area);
+                if (r.Area < 1.0)
+                {
+                    //log.Add("           Small Area ");
+                    continue;
+                }
+                string roomName = r.Name.ToLower().ToLowerInvariant();
+                if (roomName.Contains("varangue") || roomName.Contains("choir") || roomName.Contains("local"))
+                {
+                    continue; // log.Add(" ===== to remove ");
+                }
+
+                rooms.Add(r);
+
+            }
+            //log.Add(" Number of total rooms " + all_rooms.Count);
+            //log.Add(" Number of filtered rooms " + rooms.Count);
+
+            return rooms;
+        }
+
+        public static IList<ElementId> getExteriorWallId(Document doc, ref List<string> log)
+        {
+            BuildingEnvelopeAnalyzerOptions beao = new BuildingEnvelopeAnalyzerOptions();
+            BuildingEnvelopeAnalyzer bea = BuildingEnvelopeAnalyzer.Create(doc, beao);
+            IList<LinkElementId> outsideId = bea.GetBoundingElements();
+
+            IList<ElementId> outsideelements = new List<ElementId>();
+
+            // List of wall elements that revit consider as exterior
+            // This list need to be verified based on room adjency
+            foreach (LinkElementId lid in outsideId)
+            {
+                outsideelements.Add(lid.HostElementId);
+                //log.Add("  Exterior wall Id "+ lid.HostElementId + " Name "+ doc.GetElement(lid.HostElementId).Name);
+
+            }
+            return outsideelements;
+        }
+
+        public static Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>> intersectWallsAndRoom(Document doc, IList<ElementId> wallsId, IList<Room> rooms, ref List<string> log)
+        {
+            // extrusion des faces verticales des pieces
+            Solid roomSolid = null;
+            Solid extrudedFace = null;
+            Solid wallSolid = null;
+            Solid intersection = null;
+            Solid difference = null;
+            Wall hostingWall = null;
+
+            Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>> data_inter = new Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>>();
+
+            SpatialElementBoundaryOptions sebOptions
+             = new SpatialElementBoundaryOptions
+             {
+                 SpatialElementBoundaryLocation
+                 = SpatialElementBoundaryLocation.Finish
+             };
+            SpatialElementGeometryCalculator calc = new SpatialElementGeometryCalculator(doc, sebOptions);
+            Dictionary<ElementId, Solid> roomGeom =  new Dictionary<ElementId, Solid>();
+            foreach (Room room in rooms)
+            {
+                SpatialElementGeometryResults georesults = calc.CalculateSpatialElementGeometry(room);
+
+                roomSolid = georesults.GetGeometry();
+                roomGeom.Add(room.Id, roomSolid);
+                //log.Add("\n -----Room Name " + room.Name);
+
+                foreach (Face face in roomSolid.Faces)
+                {
+                    IList<SpatialElementBoundarySubface> boundaryFaceInfo
+                      = georesults.GetBoundaryFaceInfo(face);
+                    //log.Add("       Number of subsurface " + boundaryFaceInfo.Count());
+
+                    foreach (var spatialSubFace in boundaryFaceInfo)
+                    {
+                        if (spatialSubFace.SubfaceType != SubfaceType.Side)
+                        {
+                            continue;
+                        }
+                        // log.Add(" spatialsubface typt  " + SubfaceType.Side);
+
+                        //SpatialBoundaryCache spatialData
+                        // = new SpatialBoundaryCache();
+
+                        hostingWall = doc.GetElement(spatialSubFace.SpatialBoundaryElement.HostElementId) as Wall;
+
+                        if (hostingWall == null)
+                        {
+                            continue;
+                        }
+                        //log.Add(" hostingwall : " + hostingWall.Name);
+
+                        if ( ! wallsId.Contains(hostingWall.Id))
+                        {
+                            continue;
+                        }
+                        //log.Add(" --------------Exterior");
+
+                        XYZ faceNormal = face.ComputeNormal(new UV(0.5, 0.5));
+                        extrudedFace = GeometryCreationUtilities.CreateExtrusionGeometry(face.GetEdgesAsCurveLoops(),
+                                                                    faceNormal, hostingWall.Width);
+
+                        // To get rid of drawing inconsistency in terms of wall orientation
+                        bool flippedWallNormal = false;
+                        if( ! faceNormal.IsAlmostEqualTo(hostingWall.Orientation) )
+                            flippedWallNormal = true;
+
+                        List<Solid> solidList = utils.GetSolids(hostingWall, false, log);
+                        wallSolid = solidList[0];
+                                                
+                        intersection = BooleanOperationsUtils.ExecuteBooleanOperation(extrudedFace,wallSolid, BooleanOperationsType.Intersect);
+                        difference = BooleanOperationsUtils.ExecuteBooleanOperation(extrudedFace, wallSolid, BooleanOperationsType.Difference);
+
+
+                        /*log.Add(" HostingWall  " + hostingWall.Name + " " + hostingWall.Id);
+                        
+                        log.Add("  extruded volume "+ extrudedFace.Volume);
+                        log.Add("  instersection volume " + intersection.Volume);
+                        log.Add("  diffrence     volume " + difference.Volume);
+                        log.Add("  inter +diff volume = " + (intersection.Volume + difference.Volume));
+                        //log.Add("   flippedNormal " + flippedWallNormal);
+                        log.Add("        Volume ratio "+ intersection.Volume/ extrudedFace.Volume);
+                        */
+
+                        if (!data_inter.ContainsKey(room.Id))
+                        {
+                            data_inter.Add(room.Id, new List<(Solid, Solid, Wall, bool)>());
+                        }  
+                        
+                        data_inter[room.Id].Add((intersection, extrudedFace, hostingWall, flippedWallNormal));
+                        
+                        
+
+                        //log.Add(" data size " + data_inter.Count());
+                        //data.Add((wall, face, room));
+
+
+
+                    } // end foreach subface from which room bounding elements are derived
+
+                } // end foreach Face
+
+            } // end foreach Room
+
+
+            //a wall could be partially exterior exposed
+            //one must filter the portion of wall that are actually inside despite the wall is exterior
+            Solid extruded_translated = null;
+            Transform transform = null;
+            foreach (ElementId roomid in data_inter.Keys)
+            {
+                List<int> rm_idx=new List<int>();
+                int i = 0;
+
+                //for each wall portion, check if it intersect with the geometry of a room
+                foreach ((Solid, Solid, Wall,bool) ff in data_inter[roomid])
+                {
+                    extrudedFace = ff.Item2;
+                    XYZ translation = ff.Item3.Orientation;
+                    if ( ff.Item4)
+                        translation = translation.Negate();
+
+                    translation = translation.Multiply(ff.Item3.Width * .1);
+                    transform = Transform.CreateTranslation(translation);
+                    extruded_translated = SolidUtils.CreateTransformed(extrudedFace, transform);
+                    
+
+                    foreach ( ElementId roomGeomId in roomGeom.Keys)
+                    {
+                        if (roomGeomId == roomid)
+                            continue;
+                        intersection = BooleanOperationsUtils.ExecuteBooleanOperation(extruded_translated, roomGeom[roomGeomId], BooleanOperationsType.Intersect);
+                        if(intersection.Volume >0.00000001)
+                        {
+                            //log.Add(" Shared portion of wall between room " + doc.GetElement(roomid).Name+ " AND " + doc.GetElement(roomGeomId).Name);
+                            //log.Add(" intersection volume " + intersection.Volume);
+                            rm_idx.Add(i);
+                        }
+                        
+                    }
+                    i++;
+                }
+                foreach(int j in rm_idx)
+                {
+                    data_inter[roomid].RemoveAt(j);
+                }
+            }
+
+            // need to check if two wall portion belong to the same room, are supported by the same wall and 
+            // have similar orientation. In this case, we need to merge the wall portions
+            // TODO the merging
+
+           
+
+            return data_inter;
+        }
+
+        public static Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>)>> AssociateWallPortionAndOpening(Document doc, Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>> data_inter, ref List<string> log)
+        {
+            ElementCategoryFilter window_filter = new ElementCategoryFilter(BuiltInCategory.OST_Windows);
+            ElementCategoryFilter door_filter = new ElementCategoryFilter(BuiltInCategory.OST_Doors);
+
+            
+            Wall wall = null;
+            Solid openingSolid = null;
+            List<Solid> openingSolids = new List<Solid>();
+            //List<Solid> solids2 = new List<Solid>();
+            //Dictionary<ElementId, List<(Face, Face,Face, ElementId)>> results = new Dictionary<ElementId, List<(Face, Face,Face, ElementId)>>();
+            
+            // Key : room Id
+            // Values :
+            //  Item1 : extruded face
+            //  item2 : intersection with wall face
+            //  item3 : list of openings
+            //          | Item 1 : opening face 
+            //          | Item 2 : window Id
+            Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>)>> complete_data = new Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>)>>();
+
+            Face extruded_face = null;
+            Face intersection_face = null;
+            Solid extruded_solid = null;
+            Solid intersection_solid = null;
+
+            foreach ( ElementId id in data_inter.Keys )
+            {
+                //log.Add(" \n\n ******  Room name "+ doc.GetElement(id).Name);
+                complete_data.Add(id, new List<(Face, Face, List<(Face, ElementId)>)>());
+                
+                Room room = doc.GetElement(id) as Room;
+                
+                foreach( (Solid,Solid,Wall,bool) wallportion in data_inter[id])
+                {
+                    intersection_solid = wallportion.Item1;
+                    extruded_solid = wallportion.Item2;
+                    wall = wallportion.Item3 as Wall;
+                    
+                    XYZ wallNormal = wall.Orientation;
+                    //log.Add(" Waal Normal "+ wallNormal);   
+                    if( wallportion.Item4)
+                    {
+                        wallNormal=wallNormal.Negate();
+                    }
+                    // we want the face that is oriented through the interior, avoid the remaining of solid operations
+                    //wallNormal = wallNormal.Negate();
+
+                    //log.Add(" Waal Normal " + wallNormal);
+
+                    //log.Add("    Wall portion  " + id);
+
+                    //extracting faces with normal pointing through exterior (colinear to wallnormal)
+                    foreach (Face face in extruded_solid.Faces)
+                    {
+                        if (wallNormal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
+                        {
+                            extruded_face = face;
+                            //log.Add(" extruded normal " + extruded_face.ComputeNormal(new UV(0.5, 0.5)) );
+
+                        }
+                    }
+                    foreach (Face face in intersection_solid.Faces)
+                    {
+                        if (wallNormal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
+                        {
+                            intersection_face = face;
+                            //log.Add(" intersection normal " + intersection_face.ComputeNormal(new UV(0.5, 0.5)));
+                        }
+                    }
+                    
+                    complete_data[id].Add((extruded_face, intersection_face, new List<(Face, ElementId)>()));
+
+                    
+                    //IList<ElementId> dependentIds = wall.GetDependentElements(window_filter);
+                    List<ElementId> dependentIds = wall.GetDependentElements(window_filter).ToList();
+                    dependentIds.AddRange(wall.GetDependentElements(door_filter).ToList());
+
+                    //log.Add(" Number of depending solids : " + dependentIds.Count);
+                    //No window in this wall 
+                    if (dependentIds.Count() == 0)
+                    {
+                        continue;
+                    }
+                    
+
+                    
+                    openingSolid = BooleanOperationsUtils.ExecuteBooleanOperation(extruded_solid, intersection_solid, BooleanOperationsType.Difference);
+                   /* log.Add(" extrude volume " + extruded_solid.Volume);
+                    log.Add(" intersection volume " + intersection_solid.Volume);
+                    log.Add(" difference volume " + openingSolid.Volume);
+                   */
+                    // multiple window can be located on the same wall portion : need to split the difference
+                    IList<Solid> splittedOpening = SolidUtils.SplitVolumes(openingSolid);
+
+                    foreach (Solid spl in splittedOpening)
+                    {
+                        //log.Add(" ----- Volume of difference splitted " + spl.Volume);
+                        ElementIntersectsSolidFilter solidfilter = new ElementIntersectsSolidFilter(spl);
+
+                        foreach (ElementId elementid in dependentIds)
+                        {
+                            //intersection between a window and a solid opening
+                            //to do some kind of mapping solid-window
+                            if (solidfilter.PassesFilter(doc, elementid))
+                            {
+                                //log.Add("    Intersection opening and window ");
+                                Face external = null;
+                                //double maxArea = 0.0;
+                                
+                                foreach (Face face in spl.Faces)
+                                {
+                                    if (wallNormal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
+                                    {
+                                        external = face;
+                                        complete_data[id].Last().Item3.Add((external, elementid));
+                                        //log.Add("           opening normal " + external.ComputeNormal(new UV(0.5, 0.5)));
+
+                                    }
+
+
+                                }
+                                
+
+                            }
+
+                        }
+                    }
+                    
+                }
+
+            }
+            /*
+            foreach( ElementId id in complete_data.Keys)
+            {
+                log.Add(" \n\n ******  Room name " + doc.GetElement(id).Name);
+                foreach((Face, Face, List<(Face, ElementId)>) t in complete_data[id] )
+                {
+                    
+                    double area = 0.0;
+                    log.Add(" number of opening : " + t.Item3.Count);
+                    foreach( (Face,ElementId) tt in t.Item3  )
+                    {
+                        //log.Add("        Opening area " + tt.Item1.Area);
+                        //log.Add("        window area  " + )
+                        area += tt.Item1.Area;
+                    }
+                    log.Add(" Room face area    :" + t.Item1.Area);
+                    log.Add(" Wall portion area :" + t.Item2.Area);
+                    log.Add(" Total opening area :" + area);
+                    log.Add("\n");
+                }
+            }
+            */
+            return complete_data;
+        }
+
         public static Dictionary<ElementId, List<(Face, Solid, Room)>> GetExteriorWallPortion(Document doc, double offset, ref List<string> log)
         {
             Solid wallportion = null;
@@ -241,10 +616,47 @@ namespace canopia_lib
                   = SpatialElementBoundaryLocation.Finish
               };
 
-            IEnumerable<Element> rooms
+            /*IEnumerable<Element> rooms
               = new FilteredElementCollector(doc)
-                .OfClass(typeof(SpatialElement))
+                .OfClass(typeof(SpatialElement))  /// 
                 .Where<Element>(e => (e is Room));
+            */
+            RoomFilter filter = new RoomFilter();
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            IList<Element> all_rooms = collector.WherePasses(filter).ToElements();
+
+            //Filtering of rooms : area greater than xx, Room type not space
+            IList<Element> rooms = new List<Element>();
+            foreach (Element el in all_rooms)
+            {
+                Room r = el as Room;
+
+                log.Add("----- Name  : " + r.Name + " Number " + r.Number);
+                log.Add("       Location " + r.Location);
+                if (r.Location == null)
+                {
+                    log.Add("          NULLLLL location ");
+                    continue;
+                }
+
+                log.Add("       Area " + r.Area);
+                if (r.Area < 1.0)
+                {
+                    log.Add("           Small Area ");
+                    continue;
+                }
+                string roomName = r.Name.ToLower().ToLowerInvariant();
+                if (roomName.Contains("varangue") || roomName.Contains("choir") || roomName.Contains("local"))
+                {
+                    continue; // log.Add(" ===== to remove ");
+                }
+
+                rooms.Add(el);
+
+            }
+            log.Add(" Number of total rooms " + all_rooms.Count);
+            log.Add(" Number of filtered rooms " + rooms.Count);
+            rooms = all_rooms;
 
 
 
@@ -259,6 +671,7 @@ namespace canopia_lib
             foreach (LinkElementId lid in outsideId)
             {
                 outsideelements.Add(lid.HostElementId);
+                //log.Add("  Exterior wall Id "+ lid.HostElementId + " Name "+ doc.GetElement(lid.HostElementId).Name);
 
             }
 
@@ -276,8 +689,8 @@ namespace canopia_lib
                 if (room == null) continue;
                 if (room.Location == null) continue;
                 if (room.Area.Equals(0)) continue;
-                //log.Add(" \n ");
-                //log.Add("=== Room found : " + room.Name);
+                log.Add(" \n ");
+                log.Add("=== Room found : " + room.Name);
 
 
                 SpatialElementGeometryResults georesults = calc.CalculateSpatialElementGeometry(room);
@@ -311,7 +724,7 @@ namespace canopia_lib
 
                         if (!outsideelements.Contains(wall.Id))
                         {
-                            // log.Add("       Inside wall ");
+                            log.Add("       Inside wall ");
                             continue;
                         }
 
@@ -343,13 +756,14 @@ namespace canopia_lib
 
             foreach (ElementId key in data.Keys)
             {
-                //log.Add("  ------  Wall Id " + key);
+                log.Add(" \n ------  Wall Id " + key);
                 wall = doc.GetElement(key) as Wall;
                 double wall_width = wall.Width;
                 List<Solid> extrusions = new List<Solid>();
 
 
                 int Nwallportion = data[key].Count();
+                log.Add(" Number of room face associated with this wall : " + Nwallportion);
                 bool[] tokeep = new bool[Nwallportion];
 
                 for (int i = 0; i < Nwallportion; i++)
@@ -359,13 +773,16 @@ namespace canopia_lib
 
                 for (int i = 0; i < Nwallportion; i++)
                 {
+                    log.Add(" Looking for intersection with wall " + data[key][i].Item3.Name + " Id " + data[key][i].Item3.Id);
                     for (int j = i + 1; j < Nwallportion; j++)
                     {
-                        //log.Add("  walls between " + data[key][i].Item3.Name + "  &  " + data[key][j].Item3.Name);
+                        log.Add("    With wall  " + data[key][j].Item3.Name + " Id " + data[key][j].Item3.Id);
                         intersection = BooleanOperationsUtils.ExecuteBooleanOperation(data[key][i].Item2, data[key][j].Item2, BooleanOperationsType.Intersect);
-                        //log.Add(" intersection volume  "+intersection.Volume);
+                        log.Add("       Intersection volume  " + intersection.Volume);
+                        // Si il y a intersection : deux faces extrudées qui sont de chaque coté d'un mur --> mur pas extérieur...
                         if (intersection.Volume > 0.00001)
                         {
+                            log.Add("          These walls are probably internals ");
                             tokeep[i] = false;
                             tokeep[j] = false;
                         }
@@ -373,7 +790,7 @@ namespace canopia_lib
                     }
 
                 }
-                //log.Add(" Number of faces before screening " + data[key].Count());
+                log.Add(" Number of faces before screening " + data[key].Count());
 
                 List<(Face, Solid, Room)> templist = new List<(Face, Solid, Room)>();
                 for (int i = 0; i < tokeep.Count(); ++i)
@@ -484,18 +901,18 @@ namespace canopia_lib
                     dgcanopia = spFile.Groups.Create(groupName);
                     t.Commit();
                 }
-                
+
                 log.Add("CANOPIA defnition group has been created ");
             }
             return dgcanopia;
         }
 
-        public static (bool, Guid) createSharedParameter(Document doc, Application app,string paramName,string description, Category cat, ref List<string> log)
+        public static (bool, Guid) createSharedParameter(Document doc, Application app, string paramName, string description, Category cat, ref List<string> log)
         {
             DefinitionGroup dgcanopia = utils.CANOPIAdefintionGroup(doc, app, log);
-                                                          
+
             Definition def = dgcanopia.Definitions.get_Item(paramName);
-            string transactionName= null;
+            string transactionName = null;
 
             if (def != null)
             {
@@ -548,7 +965,7 @@ namespace canopia_lib
             Schema dataschema = null;
             foreach (Schema schem in Schema.ListSchemas())
             {
-               // log.Add(schem.SchemaName);
+                // log.Add(schem.SchemaName);
                 if (schem.SchemaName == SchemaName)
                 {
                     dataschema = schem;
@@ -636,6 +1053,11 @@ namespace canopia_lib
             {
                 return p.ToString().GetHashCode();
             }
+        }
+
+        public static double sqf2m2(double sqf2)
+        {
+            return (sqf2 * 0.092903);
         }
     }
 }
