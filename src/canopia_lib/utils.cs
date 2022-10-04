@@ -141,7 +141,7 @@ namespace canopia_lib
                         //log.Add("       Geometry instance  of " + typeof(Solid));
                         if (geoobj == null)
                         {
-                            log.Add(" geo obj null ");
+                            //log.Add(" geo obj null ");
                             continue;
                         }
 
@@ -166,6 +166,7 @@ namespace canopia_lib
                                 GeometryElement instanceGeometryElement = instance.GetInstanceGeometry();
                                 if (instanceGeometryElement == null)
                                 {
+                                    //log.Add(" Geometry instance null ");
                                     continue;
                                 }
 
@@ -445,7 +446,7 @@ namespace canopia_lib
             return data_inter;
         }
 
-        public static Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>)>> AssociateWallPortionAndOpening(Document doc, Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>> data_inter, ref List<string> log)
+        public static Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>, ElementId)>> AssociateWallPortionAndOpening(Document doc, Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>> data_inter, ref List<string> log)
         {
             ElementCategoryFilter window_filter = new ElementCategoryFilter(BuiltInCategory.OST_Windows);
             ElementCategoryFilter door_filter = new ElementCategoryFilter(BuiltInCategory.OST_Doors);
@@ -464,7 +465,7 @@ namespace canopia_lib
             //  item3 : list of openings
             //          | Item 1 : opening face 
             //          | Item 2 : window Id
-            Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>)>> complete_data = new Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>)>>();
+            Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>, ElementId)>> complete_data = new Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>, ElementId)>>();
 
             Face extruded_face = null;
             Face intersection_face = null;
@@ -474,7 +475,7 @@ namespace canopia_lib
             foreach ( ElementId id in data_inter.Keys )
             {
                 //log.Add(" \n\n ******  Room name "+ doc.GetElement(id).Name);
-                complete_data.Add(id, new List<(Face, Face, List<(Face, ElementId)>)>());
+                complete_data.Add(id, new List<(Face, Face, List<(Face, ElementId)>, ElementId)>());
                 
                 Room room = doc.GetElement(id) as Room;
                 
@@ -516,7 +517,7 @@ namespace canopia_lib
                         }
                     }
                     
-                    complete_data[id].Add((extruded_face, intersection_face, new List<(Face, ElementId)>()));
+                    complete_data[id].Add((extruded_face, intersection_face, new List<(Face, ElementId)>(),wall.Id));
 
                     
                     //IList<ElementId> dependentIds = wall.GetDependentElements(window_filter);

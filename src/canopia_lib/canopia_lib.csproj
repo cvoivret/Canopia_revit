@@ -18,6 +18,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <PackageReference Include="CsvHelper" Version="28.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<Reference Include="RevitAPI">
 			<HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
 		</Reference>

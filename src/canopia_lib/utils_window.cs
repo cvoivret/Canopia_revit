@@ -365,7 +365,7 @@ namespace canopia_lib
             // Get the number of glass solid and centroid position
             // Based on that, infer the type of window
             (List<Solid>, List<Face>, XYZ) res = GetGlassSurfacesAndSolids2(doc, window, ref log);
-
+            //log.Add(" Number of solid " + res.Item1.Count());
 
             if(res.Item1.Count()==0)
             {
