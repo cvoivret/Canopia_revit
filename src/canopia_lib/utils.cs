@@ -437,20 +437,145 @@ namespace canopia_lib
                 }
             }
 
-            // need to check if two wall portion belong to the same room, are supported by the same wall and 
-            // have similar orientation. In this case, we need to merge the wall portions
-            // TODO the merging
 
-           
 
-            return data_inter;
+            //a room could expose multiple faces to the same wall (evnetually separated by a drywall or kitchen table)
+            //the resutlting itersections must be merged
+
+            Dictionary<ElementId, List<(Solid, Solid, Wall, bool)>> data_inter2 = new Dictionary<ElementId, List<(Solid, Solid, Wall, bool)>>();
+
+            (Solid, Solid, Wall, bool) first;
+            (Solid, Solid, Wall, bool) second;
+            Dictionary<int,HashSet<int>> to_merge = new Dictionary<int, HashSet<int>>(); 
+            foreach (ElementId roomid in data_inter.Keys)
+            {
+                
+                //log.Add(" Room  : "+ doc.GetElement(roomid).Name);
+                //log.Add(" Number of wall " + data_inter[roomid].Count);
+                //for each wall portion, check if it orientation is similar to another one for the same room
+                
+                to_merge.Clear();
+                for ( int i=0;i< data_inter[roomid].Count;i++)
+                {
+                    
+                    to_merge[i]= new HashSet<int>();
+
+                    for (int j = i+1; j < data_inter[roomid].Count; j++)
+                    {
+                        first = data_inter[roomid][i];
+                        second = data_inter[roomid][j];
+                        if( first.Item3.Id == second.Item3.Id )
+                        {
+                            //log.Add("       Same wall "+ first.Item3.Id + "    "+i+"  "+j);
+                            //log.Add(" Volume of first individual " + data_inter[roomid][i].Item1.Volume + " " + data_inter[roomid][i].Item2.Volume);
+                            //log.Add(" Volume of secondindividual " + data_inter[roomid][j].Item1.Volume + " " + data_inter[roomid][j].Item2.Volume);
+
+                            to_merge[i].Add(i);
+                            to_merge[i].Add(j);
+                            
+                        }
+
+                    }
+                   
+
+                }
+                data_inter2[roomid] = new List<(Solid, Solid, Wall, bool)>();
+                Solid union1 = null;
+                Solid union2 = null;
+                HashSet<int> merged = new HashSet<int>();
+                foreach ( int k in to_merge.Keys )
+                {
+                    if (merged.Contains(k))
+                        continue;
+
+                    union1 = data_inter[roomid][k].Item1 as Solid;
+                    union2 = data_inter[roomid][k].Item2 as Solid;
+                    merged.Add(k);
+                    
+                    //log.Add("  item " + k + " need to be replaced by a merge of ");
+                    foreach( int idx in to_merge[k].Skip(1))
+                    {
+                        //log.Add("          item number  " + idx);
+                        BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(union1,
+                                                                                             data_inter[roomid][idx].Item1,
+                                                                                             BooleanOperationsType.Union);
+                        BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(union2,
+                                                                                             data_inter[roomid][idx].Item2,
+                                                                                             BooleanOperationsType.Union);
+                        merged.Add(idx);
+                    }
+                    data_inter2[roomid].Add((union1, union2, data_inter[roomid][k].Item3, data_inter[roomid][k].Item4));
+                    //log.Add(" Volumes of unions " + union1.Volume + " " + union2.Volume );
+
+                }
+                               
+
+            }
+            
+            log.Add(" --------------------------------------- ");
+            foreach (ElementId roomid in data_inter.Keys)
+            {
+                log.Add(" Room name " + doc.GetElement(roomid).Name);
+                log.Add(" Number of wall portion " + data_inter[roomid].Count);
+                log.Add(" Number of wall portion after merging " + data_inter2[roomid].Count+"\n");
+            }
+            
+
+
+                return data_inter2;
         }
 
-        public static Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>, ElementId)>> AssociateWallPortionAndOpening(Document doc, Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>> data_inter, ref List<string> log)
+        public class wallOpening_data
+        {
+            public wallOpening_data()
+            {
+                room_faces = new List<Face>();
+                wall_faces = new List<Face>();
+                opening_faces = new List<Face>();
+                opening_id = new List<ElementId>();
+            }
+            public ElementId room_Id { get; set; }
+            public ElementId wall_Id { get; set; }
+            
+            public List<Face> room_faces { get; set; }
+
+            public List<Face> wall_faces { get; set; }
+
+            public List<Face> opening_faces { get; set; }
+
+            public List<ElementId> opening_id { get; set; }
+
+            public double room_faces_area()
+            {
+                double area = 0;    
+                foreach(Face face in room_faces)
+                {
+                    area+=face.Area;
+                }
+                return area;
+            }
+
+            public double opening_faces_area()
+            {
+                double area = 0;
+                foreach (Face face in opening_faces)
+                {
+                    area += face.Area;
+                }
+                return area;
+            }
+
+        }
+
+
+        // public static Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>, ElementId)>> AssociateWallPortionAndOpening(Document doc, Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>> data_inter, ref List<string> log)
+        public static Dictionary<ElementId, List<wallOpening_data>> AssociateWallPortionAndOpening(Document doc, Dictionary<ElementId, List<(Solid, Solid, Wall, bool)>> data_inter, ref List<string> log)
+
         {
             ElementCategoryFilter window_filter = new ElementCategoryFilter(BuiltInCategory.OST_Windows);
             ElementCategoryFilter door_filter = new ElementCategoryFilter(BuiltInCategory.OST_Doors);
-
+            
+            Dictionary<ElementId, List<wallOpening_data>> result = new Dictionary<ElementId, List<wallOpening_data>>();
             
             Wall wall = null;
             Solid openingSolid = null;
@@ -478,12 +603,20 @@ namespace canopia_lib
                 complete_data.Add(id, new List<(Face, Face, List<(Face, ElementId)>, ElementId)>());
                 
                 Room room = doc.GetElement(id) as Room;
+
+                result.Add(id, new List<wallOpening_data> ());
+
+                
                 
                 foreach( (Solid,Solid,Wall,bool) wallportion in data_inter[id])
                 {
                     intersection_solid = wallportion.Item1;
                     extruded_solid = wallportion.Item2;
                     wall = wallportion.Item3 as Wall;
+
+                    wallOpening_data data = new wallOpening_data();
+                    data.room_Id = room.Id;
+                    data.wall_Id= wall.Id;
                     
                     XYZ wallNormal = wall.Orientation;
                     //log.Add(" Waal Normal "+ wallNormal);   
@@ -494,7 +627,7 @@ namespace canopia_lib
                     // we want the face that is oriented through the interior, avoid the remaining of solid operations
                     //wallNormal = wallNormal.Negate();
 
-                    //log.Add(" Waal Normal " + wallNormal);
+                    //log.Add(" Wall Normal " + wallNormal);
 
                     //log.Add("    Wall portion  " + id);
 
@@ -504,6 +637,7 @@ namespace canopia_lib
                         if (wallNormal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
                         {
                             extruded_face = face;
+                            data.room_faces.Add(face);
                             //log.Add(" extruded normal " + extruded_face.ComputeNormal(new UV(0.5, 0.5)) );
 
                         }
@@ -513,7 +647,8 @@ namespace canopia_lib
                         if (wallNormal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
                         {
                             intersection_face = face;
-                            //log.Add(" intersection normal " + intersection_face.ComputeNormal(new UV(0.5, 0.5)));
+                            data.wall_faces.Add(face);
+                            //log.Add(" intersection normal  " + intersection_face.ComputeNormal(new UV(0.5, 0.5)));
                         }
                     }
                     
@@ -561,7 +696,11 @@ namespace canopia_lib
                                     if (wallNormal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
                                     {
                                         external = face;
+                                        
                                         complete_data[id].Last().Item3.Add((external, elementid));
+
+                                        data.opening_faces.Add(face);
+                                        data.opening_id.Add(elementid);
                                         //log.Add("           opening normal " + external.ComputeNormal(new UV(0.5, 0.5)));
 
                                     }
@@ -574,33 +713,27 @@ namespace canopia_lib
 
                         }
                     }
-                    
+                    result[data.room_Id].Add(data);
                 }
+                
 
             }
-            /*
-            foreach( ElementId id in complete_data.Keys)
+
+            foreach (ElementId id in result.Keys)
             {
                 log.Add(" \n\n ******  Room name " + doc.GetElement(id).Name);
-                foreach((Face, Face, List<(Face, ElementId)>) t in complete_data[id] )
+                log.Add(" number of wallopening data " + result[id].Count);
+                foreach (wallOpening_data d in result[id])
                 {
-                    
-                    double area = 0.0;
-                    log.Add(" number of opening : " + t.Item3.Count);
-                    foreach( (Face,ElementId) tt in t.Item3  )
-                    {
-                        //log.Add("        Opening area " + tt.Item1.Area);
-                        //log.Add("        window area  " + )
-                        area += tt.Item1.Area;
-                    }
-                    log.Add(" Room face area    :" + t.Item1.Area);
-                    log.Add(" Wall portion area :" + t.Item2.Area);
-                    log.Add(" Total opening area :" + area);
-                    log.Add("\n");
+                    log.Add(" Number of wall face " + d.wall_faces.Count);
+                    log.Add(" Number of room face " + d.room_faces.Count);
+                    log.Add(" Number of opening face " + d.opening_faces.Count);
+                    log.Add(" Number of opening id " + d.opening_id.Count);
+
                 }
             }
-            */
-            return complete_data;
+
+            return result;//complete_data;
         }
 
         public static Dictionary<ElementId, List<(Face, Solid, Room)>> GetExteriorWallPortion(Document doc, double offset, ref List<string> log)

@@ -191,6 +191,96 @@ namespace canopia_lib
             return ratio;
         }
 
+        public static List<double> openingRatio3(Document doc, Dictionary<ElementId, List<utils.wallOpening_data>> complete_data, ref List<string> log)
+        {
+
+            // TODO : identifier les longueurs/largeurs des opening pour y enlever la hauteur des dormants 
+            // face--> planarface --> uvbb--> XYZ (min,max) --> Xaxis of face
+
+
+            List<double> byroom_area = new List<double>();
+            List<double> bywall_opening_area = new List<double>();
+            List<double> ratio = new List<double>();
+
+            double opening_area = 0.0;
+            double room_area = 0.0;
+            foreach ( ElementId key in complete_data.Keys)
+            {
+                Room room = doc.GetElement(key) as Room;
+                log.Add(" Room name " + room.Name + " Area " + utils.sqf2m2(room.Area));
+                log.Add(" Room Number " + room.Number);
+                log.Add(" Number of wallopending data " + complete_data[key].Count);
+
+                byroom_area.Clear();
+                bywall_opening_area.Clear();
+
+                //melange entre les face portée par les murs et celles de la pieces...bordel
+                // par piece, par mur, quelle est la surface de mur et d'ouverture --> a remonter dans la classe ?
+
+                foreach (utils.wallOpening_data ff in complete_data[key])
+                {
+                    //log.Add("       Extruded area : " + utils.sqf2m2(ff.Item1.Area));
+                    /*opening_area = 0.0;
+                    room_area = 0.0;
+                    foreach( Face f in ff.room_faces)
+                    {
+                        room_area += f.Area;
+                        log.Add(" room area face " + utils.sqf2m2(f.Area));
+                    }
+
+                    foreach (Face f in ff.opening_faces)
+                    {
+                        opening_area += f.Area;
+                        log.Add(" opening  area face " + utils.sqf2m2(f.Area));
+                    }*/
+
+                    byroom_area.Add(ff.room_faces_area());
+                    bywall_opening_area.Add(ff.opening_faces_area());
+
+                    log.Add(" +++++  wall id " + ff.wall_Id);
+                    log.Add("   room area "+ utils.sqf2m2(ff.room_faces_area()));
+                    log.Add("   opening   "+ utils.sqf2m2(ff.opening_faces_area()));
+
+                    /*
+                    if (ff.Item3.Count > 0)
+                    {
+
+                        foreach ((Face, ElementId) t in ff.Item3)
+                        {
+                            Element window = doc.GetElement(t.Item2);
+                            double porosity = utils_window.infer_window_porosity(doc, window, ref log);
+                            //log.Add(" Window name : " + window.Name + " infered porosity " + porosity);
+                            porosity = 1.0;//utils_window.infer_window_porosity(doc, window, ref log);
+                            log.Add(" Window name : " + window.Name);
+                            log.Add("          Area of opening  " + utils.sqf2m2(t.Item1.Area) + "  with .66 " + utils.sqf2m2(t.Item1.Area * 0.66));
+                            //log.Add("          Free Area        " + utils.sqf2m2(t.Item1.Area*));
+                            log.Add("          Extruded area :  " + utils.sqf2m2(ff.Item1.Area));
+                            opening_area += t.Item1.Area * porosity;
+
+                        }
+                    }//log.Add("       Number of opening for this area " + ff.Item3.Count);
+                    */
+                }
+
+                
+                
+
+                if (bywall_opening_area.Count == 0)
+                {
+                    log.Add("  No opening in this room -->problem ?\n");
+                }
+                else
+                {
+                    int largestOpeningIdx = bywall_opening_area.IndexOf(bywall_opening_area.Max());
+                    double opening_ratio = bywall_opening_area.Sum() / byroom_area[largestOpeningIdx];
+                    ratio.Add(opening_ratio);
+                    log.Add("  === Opening ratio  " + opening_ratio + "\n");
+                }
+            }
+            return ratio;
+        }
+
+
         public class record
         {
             public string room_number { get; set; }
@@ -203,8 +293,6 @@ namespace canopia_lib
             public double rawopening_area { get; set; }
             public double wall_area { get; set; }
             public int wall_id { get; set; }
-
-
 
 
         }
@@ -458,8 +546,7 @@ namespace canopia_lib
             return iddict;
         }
 
-
-        public static Dictionary<ElementId, List<ElementId>> display_opening3(Document doc, Dictionary<ElementId, List<(Solid, Solid, Wall, bool)>> complete_data, ref List<string> log)
+        public static Dictionary<ElementId, List<ElementId>> display_opening3(Document doc, Dictionary<ElementId, List<utils.wallOpening_data>> complete_data, ref List<string> log)
         {
             FilteredElementCollector fillPatternElementFilter = new FilteredElementCollector(doc);
             fillPatternElementFilter.OfClass(typeof(FillPatternElement));
@@ -487,50 +574,47 @@ namespace canopia_lib
             List<Face> displayed = new List<Face>();
             Solid wall = null;
             Solid opening = null;
-            Solid intersection = null;
             double ext_length = 1.0;
-            foreach (ElementId key in complete_data.Keys)
+            foreach (ElementId id in complete_data.Keys)
             {
-                if (!iddict.ContainsKey(key))
+                foreach (utils.wallOpening_data d in complete_data[id])
                 {
-                    iddict.Add(key, new List<ElementId>());
-                }
-                //log.Add(" Room name " + doc.GetElement(key).Name);
-                foreach ((Solid, Solid, Wall, bool) ff in complete_data[key])
-                {
-                    intersection = ff.Item1;
-                    wall = ff.Item2;
+                if (!iddict.ContainsKey(d.room_Id))
+                    {
+                        iddict.Add(d.room_Id, new List<ElementId>());
+                    }
+                    //log.Add(" Room name " + doc.GetElement(key).Name);
 
-                    ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                    ds.ApplicationId = "Application id";
-                    ds.ApplicationDataId = "Geometry object id";
-                    ds.SetShape(new GeometryObject[] { ff.Item1 });
-                    iddict[key].Add(ds.Id);
-                    doc.ActiveView.SetElementOverrides(ds.Id, ogss);
-                    
+                    for (int i = 0; i < d.wall_faces.Count; i++)
+                    {
+                        wall = GeometryCreationUtilities.CreateExtrusionGeometry(d.wall_faces[i].GetEdgesAsCurveLoops(), d.wall_faces[i].ComputeNormal(new UV(0.5, 0.5)), ext_length);
 
-                       /*
                         ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
                         ds.ApplicationId = "Application id";
                         ds.ApplicationDataId = "Geometry object id";
-                        ds.SetShape(new GeometryObject[] { wall});
+                        ds.SetShape(new GeometryObject[] { wall });
+                        iddict[d.room_Id].Add(ds.Id);
+                        doc.ActiveView.SetElementOverrides(ds.Id, ogss);
+                    }
+                    for (int i = 0; i < d.opening_faces.Count; i++)
+                    {
+                        opening = GeometryCreationUtilities.CreateExtrusionGeometry(d.opening_faces[i].GetEdgesAsCurveLoops(), d.opening_faces[i].ComputeNormal(new UV(0.5, 0.5)), 1.1 * ext_length);
+                        ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                        ds.ApplicationId = "Application id";
+                        ds.ApplicationDataId = "Geometry object id";
+                        ds.SetShape(new GeometryObject[] { opening });
                         doc.ActiveView.SetElementOverrides(ds.Id, ogs);
-                    //iddict[key].Add(ds.Id);
-                       */
+                        //iddict[key].Add(ds.Id);
 
-                    opening = BooleanOperationsUtils.ExecuteBooleanOperation(wall, intersection, BooleanOperationsType.Difference);
-                    ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                    ds.ApplicationId = "Application id";
-                    ds.ApplicationDataId = "Geometry object id";
-                    ds.SetShape(new GeometryObject[] { opening });
-                    doc.ActiveView.SetElementOverrides(ds.Id, ogs);
 
+                    } 
                 }
 
             }
 
             return iddict;
         }
+
 
 
         public static Dictionary<ElementId, List<ElementId>> display_opening(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
