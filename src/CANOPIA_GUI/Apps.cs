@@ -702,25 +702,38 @@ namespace canopia_gui
 
             Dictionary<ElementId, List<ElementId>> id_display;
 
-            Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
-            List<double> openingRatios = natural_ventilation.openingRatio(doc, results, ref log);
+
+            IList<Room> rooms = utils.filterRoomList(doc, ref log);
+            IList<ElementId> wallsId = utils.getExteriorWallId(doc, ref log);
+
+            Dictionary<ElementId, List<(Solid, Solid, Wall, bool)>> data_inter = utils.intersectWallsAndRoom(doc, wallsId, rooms, ref log);
+
+            Dictionary<ElementId, List<utils.wallOpening_data>> complete_data2 = utils.AssociateWallPortionAndOpening(doc, data_inter, ref log);
+
+            (List<natural_ventilation.openingRatio_byroom> byroom, List<natural_ventilation.openingRatio_data> data) = natural_ventilation.openingRatio3(doc, complete_data2, ref log);
+
+            natural_ventilation.openingRatio_csv(doc, byroom, ref log);
+            natural_ventilation.openingRatio_json(doc, data, ref log);
+
             using (Transaction t = new Transaction(doc))
             {
                 t.Start("Display opening");
-                id_display = natural_ventilation.display_opening(doc, results, ref log);
-                foreach ((ElementId id, double or) in results.Keys.Zip(openingRatios, (first, second) => (first, second)))
-                {
-                    // log.Add(" Element found " + doc.GetElement(id).Name);
-                    doc.GetElement(id).get_Parameter(guid).Set(or);
-                    utils.storeDataOnElementDisplay(doc, doc.GetElement(id), id_display[id], ESguid, log);
+                natural_ventilation.display_opening3(doc, complete_data2, ref log);
 
-                }
+                //natural_ventilation.display_opening3(doc, data_inter, ref log);
+                /*foreach((ElementId id,double or) in results.Keys.Zip(openingRatios,(first,second)=>(first,second)))
+                {
+                   // log.Add(" Element found " + doc.GetElement(id).Name);
+                    doc.GetElement(id).get_Parameter(guid).Set(or);
+                 doc.GetElement(id).get_Parameter(guid).Set(or);
+                    utils.storeDataOnElementDisplay(doc, doc.GetElement(id), id_display[id], ESguid, log);
+                }*/
                 //window.get_Parameter(sfaguid).Set(sfa);
 
                 t.Commit();
             }
 
-
+                        
 
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));

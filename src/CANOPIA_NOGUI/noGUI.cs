@@ -287,26 +287,21 @@ namespace canopia_nogui
 
             IList<Room> rooms = utils.filterRoomList(doc,ref log);
             IList<ElementId> wallsId = utils.getExteriorWallId(doc, ref log);
+
             Dictionary<ElementId, List<(Solid, Solid, Wall,bool)>>  data_inter = utils.intersectWallsAndRoom(doc, wallsId, rooms, ref log);
-            //Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>, ElementId)>>  complete_data= utils.AssociateWallPortionAndOpening(doc, data_inter, ref log);
 
             Dictionary<ElementId, List<utils.wallOpening_data>> complete_data2 = utils.AssociateWallPortionAndOpening(doc, data_inter, ref log);
 
-            ////Dictionary<ElementId, List<(Face, Face, ElementId)>> results = natural_ventilation.computeOpening(doc, ref log);
-            ////List<double> openingRatios = natural_ventilation.openingRatio2(doc, complete_data, ref log);
-            
-            
             (List<natural_ventilation.openingRatio_byroom> byroom, List < natural_ventilation.openingRatio_data> data ) = natural_ventilation.openingRatio3(doc, complete_data2, ref log);
 
             natural_ventilation.openingRatio_csv(doc, byroom, ref log);
             natural_ventilation.openingRatio_json(doc, data, ref log);
 
-
-
             using (Transaction t = new Transaction(doc))
             {
                 t.Start("Display opening");
                 natural_ventilation.display_opening3(doc,complete_data2,ref log);
+
                 //natural_ventilation.display_opening3(doc, data_inter, ref log);
                 /*foreach((ElementId id,double or) in results.Keys.Zip(openingRatios,(first,second)=>(first,second)))
                 {
@@ -318,8 +313,6 @@ namespace canopia_nogui
                 t.Commit();
             }
             
-
-
             //natural_ventilation.equilibriumRatio(doc, results, ref log);
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
