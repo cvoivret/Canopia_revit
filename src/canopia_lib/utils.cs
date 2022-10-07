@@ -532,6 +532,7 @@ namespace canopia_lib
                 room_faces = new List<Face>();
                 wall_faces = new List<Face>();
                 opening_faces = new List<Face>();
+                openingreduced_faces = new List<Face>();
                 opening_id = new List<ElementId>();
             }
             public ElementId room_Id { get; set; }
@@ -542,6 +543,8 @@ namespace canopia_lib
             public List<Face> wall_faces { get; set; }
 
             public List<Face> opening_faces { get; set; }
+
+            public List<Face> openingreduced_faces { get; set; }
 
             public List<ElementId> opening_id { get; set; }
 
@@ -695,11 +698,36 @@ namespace canopia_lib
                                 {
                                     if (wallNormal.IsAlmostEqualTo(face.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
                                     {
-                                        external = face;
+                                        //external = face;
                                         
-                                        complete_data[id].Last().Item3.Add((external, elementid));
+                                        //complete_data[id].Last().Item3.Add((external, elementid));
+                                        Face reducedface = face;
+                                        log.Add(" initial area " + face.Area);
+                                        
+                                        XYZ facenormal = face.ComputeNormal(new UV(0.5, 0.5));
+                                        try
+                                        {
+                                            CurveLoop cv = CurveLoop.CreateViaOffset(face.GetEdgesAsCurveLoops()[0], -utils.mft(0.07), facenormal);
+                                            IList<CurveLoop> curves = new List<CurveLoop>();
+                                            curves.Add(cv);
+                                            Solid s = GeometryCreationUtilities.CreateExtrusionGeometry(curves, facenormal.Negate(), 0.1);
+                                            foreach (Face face2 in s.Faces)
+                                            {
+                                                if (facenormal.IsAlmostEqualTo(face2.ComputeNormal(new UV(0.5, 0.5))))// & face.Area > maxArea)
+                                                {
+                                                    reducedface = face2;
+                                                }
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            log.Add(" Error in offsetting  ");
+                                        }
+                                        
+                                        log.Add(" reduced area " + reducedface.Area);
 
                                         data.opening_faces.Add(face);
+                                        data.openingreduced_faces.Add(reducedface);
                                         data.opening_id.Add(elementid);
                                         //log.Add("           opening normal " + external.ComputeNormal(new UV(0.5, 0.5)));
 
@@ -1192,6 +1220,10 @@ namespace canopia_lib
         public static double sqf2m2(double sqf2)
         {
             return (sqf2 * 0.092903);
+        }
+        public static double mft(double m)
+        {
+            return (m * 3.28084);
         }
     }
 }

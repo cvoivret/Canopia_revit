@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.IO;
 using System.Globalization;
@@ -191,55 +191,212 @@ namespace canopia_lib
             return ratio;
         }
 
-        public static List<double> openingRatio3(Document doc, Dictionary<ElementId, List<utils.wallOpening_data>> complete_data, ref List<string> log)
+        public static (List<openingRatio_byroom>, List<openingRatio_data>) openingRatio3(Document doc, Dictionary<ElementId, List<utils.wallOpening_data>> complete_data, ref List<string> log)
         {
 
-            // TODO : identifier les longueurs/largeurs des opening pour y enlever la hauteur des dormants 
-            // face--> planarface --> uvbb--> XYZ (min,max) --> Xaxis of face
-
+            List<openingRatio_byroom> openingRatio_Byrooms = new List<openingRatio_byroom>();
+            List<openingRatio_data> openingRatio_datas = new List<openingRatio_data>();
 
             List<double> byroom_area = new List<double>();
             List<double> bywall_opening_area = new List<double>();
-            List<double> ratio = new List<double>();
+            //List<double> ratio = new List<double>();
 
             double opening_area = 0.0;
             double room_area = 0.0;
-            foreach ( ElementId key in complete_data.Keys)
+            foreach (ElementId key in complete_data.Keys)
+            {
+                Room room = doc.GetElement(key) as Room;
+                //log.Add(" Room name " + room.Name + " Area " + utils.sqf2m2(room.Area));
+                //log.Add(" Room Number " + room.Number);
+                //log.Add(" Number of wallopending data " + complete_data[key].Count);
+
+                openingRatio_data data = new openingRatio_data();
+                data.room_number = room.Number;
+                data.room_name = room.Name;
+                data.room_area = utils.sqf2m2(room.Area);
+
+
+                openingRatio_byroom byroom = new openingRatio_byroom();
+                byroom.room_number = room.Number;
+                byroom.room_name = room.Name;
+                byroom.room_area = utils.sqf2m2(room.Area);
+
+                byroom_area.Clear();
+                bywall_opening_area.Clear();
+
+                foreach (utils.wallOpening_data ff in complete_data[key])
+                {
+
+                    log.Add(" +++++  wall id " + ff.wall_Id);
+                    log.Add("   room area " + utils.sqf2m2(ff.room_faces_area()));
+                    log.Add("   opening   " + utils.sqf2m2(ff.opening_faces_area()));
+
+
+                    openingRatio_walldata wd = new openingRatio_walldata();
+                    wd.wall_id = ff.wall_Id.IntegerValue;
+                    wd.roomFace_area = utils.sqf2m2(ff.room_faces_area());
+                    wd.totalopeningRaw_area = utils.sqf2m2(ff.opening_faces_area());
+
+                    for (int i = 0; i < ff.opening_faces.Count; i++)
+                    {
+                        wd.window_id.Add(ff.opening_id[i].IntegerValue);
+                        wd.window_name.Add(doc.GetElement(ff.opening_id[i]).Name);
+                        wd.opening_raw_area.Add(utils.sqf2m2(ff.opening_faces[i].Area));
+                        wd.opening_actual_area.Add(utils.sqf2m2(ff.openingreduced_faces[i].Area));
+                        wd.opening_porosity.Add(1.0);
+                    }
+                    data.walldata.Add(wd);
+                    byroom_area.Add(utils.sqf2m2(ff.room_faces_area()));
+                    bywall_opening_area.Add(utils.sqf2m2(ff.opening_faces_area()));
+                }
+
+                if (bywall_opening_area.Count == 0)
+                {
+                    log.Add("  No opening in this room -->problem ?\n");
+                    byroom.opening_ratio = -1.0;
+                    data.opening_ratio = -1.0;
+                }
+                else
+                {
+                    int largestOpeningIdx = bywall_opening_area.IndexOf(bywall_opening_area.Max());
+                    double opening_ratio = bywall_opening_area.Sum() / byroom_area[largestOpeningIdx];
+                    byroom.opening_ratio = opening_ratio;
+                    data.opening_ratio = opening_ratio;
+                    log.Add("  === Opening ratio  " + opening_ratio + "\n");
+                }
+                openingRatio_Byrooms.Add(byroom);
+                openingRatio_datas.Add(data);
+
+            }
+            return (openingRatio_Byrooms, openingRatio_datas);
+        }
+
+
+        public class openingRatio_data
+        {
+            public openingRatio_data()
+            {
+                walldata = new List<openingRatio_walldata>();
+            }
+            public string room_number { get; set; }
+            public string room_name { get; set; }
+            public double room_area { get; set; }
+            public double opening_ratio { get; set; }
+
+            public List<openingRatio_walldata> walldata { get; set; }
+
+
+        }
+        public class openingRatio_walldata
+        {
+            public openingRatio_walldata()
+            {
+                window_id = new List<int>();
+                window_name = new List<string>();
+                opening_raw_area = new List<double>();
+                opening_actual_area = new List<double>();
+                opening_porosity = new List<double>();
+
+            }
+            public int wall_id { get; set; }
+            //public double wall_area { get; set; }
+            public double roomFace_area { get; set; }
+            public double totalopeningRaw_area { get; set; }
+            public List<int> window_id { get; set; }
+            public List<string> window_name { get; set; }
+            public List<double> opening_raw_area { get; set; }
+            public List<double> opening_actual_area { get; set; }
+            public List<double> opening_porosity{ get; set; }
+
+        }
+
+        public class openingRatio_byroom
+        {
+            public string room_number { get; set; }
+            public string room_name { get; set; }
+            public double room_area { get; set; }
+            public double opening_ratio { get; set; }
+
+        }
+
+        public static void openingRatio_csv(Document doc, List<openingRatio_byroom> byroom, ref List<string> log)
+        {
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "ventilation_data_resume.csv");
+
+            using (var writer = new StreamWriter(filename))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                csv.WriteRecords(byroom);
+            }
+
+        }
+        public static void openingRatio_json(Document doc, List<openingRatio_data> data, ref List<string> log)
+        {
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "ventilation_data_raw.json");
+
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            string jsonString = JsonSerializer.Serialize(data, options);
+
+            File.WriteAllText(filename, jsonString);
+
+            
+        }
+
+        /*
+            public static List<double> openingRatio2csv(Document doc, Dictionary<ElementId, List<utils.wallOpening_data>> complete_data, ref List<string> log)
+        {
+            
+
+            List<record> records = new List<record>();
+            
+            List<double> wall_area = new List<double>();
+            List<double> bywall_opening_area = new List<double>();
+            List<double> ratio = new List<double>();
+            double opening_area = 0.0;
+
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "ventilation_data.csv");
+
+            List<double> openingRatios  = openingRatio3(doc, complete_data, ref log);
+
+
+            double opening_area = 0.0;
+            double room_area = 0.0;
+            foreach (ElementId key in complete_data.Keys)
             {
                 Room room = doc.GetElement(key) as Room;
                 log.Add(" Room name " + room.Name + " Area " + utils.sqf2m2(room.Area));
                 log.Add(" Room Number " + room.Number);
                 log.Add(" Number of wallopending data " + complete_data[key].Count);
 
-                byroom_area.Clear();
-                bywall_opening_area.Clear();
-
-                //melange entre les face portée par les murs et celles de la pieces...bordel
-                // par piece, par mur, quelle est la surface de mur et d'ouverture --> a remonter dans la classe ?
-
+                
                 foreach (utils.wallOpening_data ff in complete_data[key])
                 {
-                    //log.Add("       Extruded area : " + utils.sqf2m2(ff.Item1.Area));
-                    /*opening_area = 0.0;
-                    room_area = 0.0;
-                    foreach( Face f in ff.room_faces)
-                    {
-                        room_area += f.Area;
-                        log.Add(" room area face " + utils.sqf2m2(f.Area));
-                    }
+                    record rec = new record();
+                    rec.room_name = room.Name;
+                    rec.room_number = room.Number;
+                    rec.room_area = utils.sqf2m2(room.Area);
+                    rec.wall_area = utils.sqf2m2(ff.Item1.Area);
+                    rec.wall_id = ff.Item4.IntegerValue;
 
-                    foreach (Face f in ff.opening_faces)
-                    {
-                        opening_area += f.Area;
-                        log.Add(" opening  area face " + utils.sqf2m2(f.Area));
-                    }*/
+                    rec.opening_porosity = 1.0;
+                    rec.opening_name = window.Name;
+                    rec.rawopening_area = utils.sqf2m2(t.Item1.Area);
+                    rec.window_id = window.Id.IntegerValue;
+
+                    records.Add(rec);
 
                     byroom_area.Add(ff.room_faces_area());
                     bywall_opening_area.Add(ff.opening_faces_area());
 
                     log.Add(" +++++  wall id " + ff.wall_Id);
-                    log.Add("   room area "+ utils.sqf2m2(ff.room_faces_area()));
-                    log.Add("   opening   "+ utils.sqf2m2(ff.opening_faces_area()));
+                    log.Add("   room area " + utils.sqf2m2(ff.room_faces_area()));
+                    log.Add("   opening   " + utils.sqf2m2(ff.opening_faces_area()));
 
                     /*
                     if (ff.Item3.Count > 0)
@@ -260,60 +417,12 @@ namespace canopia_lib
                         }
                     }//log.Add("       Number of opening for this area " + ff.Item3.Count);
                     */
-                }
-
-                
-                
-
-                if (bywall_opening_area.Count == 0)
-                {
-                    log.Add("  No opening in this room -->problem ?\n");
-                }
-                else
-                {
-                    int largestOpeningIdx = bywall_opening_area.IndexOf(bywall_opening_area.Max());
-                    double opening_ratio = bywall_opening_area.Sum() / byroom_area[largestOpeningIdx];
-                    ratio.Add(opening_ratio);
-                    log.Add("  === Opening ratio  " + opening_ratio + "\n");
-                }
-            }
-            return ratio;
-        }
+        //}
 
 
-        public class record
-        {
-            public string room_number { get; set; }
-            public string room_name { get; set; }
-            public double room_area { get; set; }
-            
-            public  string opening_name { get; set; }
-            public int window_id { get; set; }
-            public double opening_porosity { get; set; }
-            public double rawopening_area { get; set; }
-            public double wall_area { get; set; }
-            public int wall_id { get; set; }
+        /*
 
-
-        }
-
-
-        public static List<double> openingRatio2csv(Document doc, Dictionary<ElementId, List<(Face, Face, List<(Face, ElementId)>,ElementId)>> complete_data, ref List<string> log)
-        {
-            
-
-            List<record> records = new List<record>();
-            
-            List<double> wall_area = new List<double>();
-            List<double> bywall_opening_area = new List<double>();
-            List<double> ratio = new List<double>();
-            double opening_area = 0.0;
-
-            string filename = Path.Combine(Path.GetDirectoryName(
-               Assembly.GetExecutingAssembly().Location),
-               "ventilation_data.csv");
-
-            foreach (ElementId key in complete_data.Keys)
+                foreach (ElementId key in complete_data.Keys)
             {
                 Room room = doc.GetElement(key) as Room;
                 log.Add("  222 Room name " + room.Name + " Area " + utils.sqf2m2(room.Area));
@@ -380,7 +489,7 @@ namespace canopia_lib
 
             return ratio;
         }
-
+            */
 
         public static List<double> openingRatio(Document doc, Dictionary<ElementId, List<(Face, Face, ElementId)>> results, ref List<string> log)
         {
@@ -554,6 +663,7 @@ namespace canopia_lib
 
             Color wallColor = new Color(154, 205, 50);
             Color openingColor = new Color(210, 105, 30);
+            Color openingreducedColor = new Color(255, 209, 0);
 
             OverrideGraphicSettings ogss = new OverrideGraphicSettings();
             ogss.SetSurfaceForegroundPatternId(fillPatternElement.Id);
@@ -568,12 +678,19 @@ namespace canopia_lib
             ogs.SetSurfaceForegroundPatternColor(openingColor);
             ogs.SetCutForegroundPatternColor(openingColor);
 
+            OverrideGraphicSettings ogs2 = new OverrideGraphicSettings();
+            ogs2.SetSurfaceForegroundPatternId(fillPatternElement.Id);
+            ogs2.SetProjectionLineColor(openingreducedColor);
+            ogs2.SetSurfaceForegroundPatternColor(openingreducedColor);
+            ogs2.SetCutForegroundPatternColor(openingreducedColor);
+
             Dictionary<ElementId, List<ElementId>> iddict = new Dictionary<ElementId, List<ElementId>>();
 
 
             List<Face> displayed = new List<Face>();
             Solid wall = null;
             Solid opening = null;
+            Solid openingreduced = null;
             double ext_length = 1.0;
             foreach (ElementId id in complete_data.Keys)
             {
@@ -607,7 +724,19 @@ namespace canopia_lib
                         //iddict[key].Add(ds.Id);
 
 
-                    } 
+                    }
+                    for (int i = 0; i < d.openingreduced_faces.Count; i++)
+                    {
+                        openingreduced = GeometryCreationUtilities.CreateExtrusionGeometry(d.openingreduced_faces[i].GetEdgesAsCurveLoops(), d.openingreduced_faces[i].ComputeNormal(new UV(0.5, 0.5)), 1.2 * ext_length);
+                        ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                        ds.ApplicationId = "Application id";
+                        ds.ApplicationDataId = "Geometry object id";
+                        ds.SetShape(new GeometryObject[] { openingreduced });
+                        doc.ActiveView.SetElementOverrides(ds.Id, ogs2);
+                        //iddict[key].Add(ds.Id);
+
+
+                    }
                 }
 
             }

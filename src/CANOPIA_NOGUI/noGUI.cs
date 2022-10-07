@@ -296,9 +296,10 @@ namespace canopia_nogui
             ////List<double> openingRatios = natural_ventilation.openingRatio2(doc, complete_data, ref log);
             
             
-            List<double> openingRatios = natural_ventilation.openingRatio3(doc, complete_data2, ref log);
+            (List<natural_ventilation.openingRatio_byroom> byroom, List < natural_ventilation.openingRatio_data> data ) = natural_ventilation.openingRatio3(doc, complete_data2, ref log);
 
-            //List<double> openingRatios2 = natural_ventilation.openingRatio2csv(doc, complete_data, ref log);
+            natural_ventilation.openingRatio_csv(doc, byroom, ref log);
+            natural_ventilation.openingRatio_json(doc, data, ref log);
 
 
 
