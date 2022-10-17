@@ -41,6 +41,7 @@ namespace canopia_nogui
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start Shadow at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
 
+            /*
             string path = Path.Combine(Path.GetDirectoryName(
                Assembly.GetExecutingAssembly().Location),
                "no_guiWindow22.log");
@@ -63,6 +64,7 @@ namespace canopia_nogui
 
 
             }
+            */
 
 
 
@@ -70,6 +72,8 @@ namespace canopia_nogui
             Document doc = uiapp.ActiveUIDocument.Document;
             View view = doc.ActiveView;
             Application app = uiapp.Application;
+
+            log.Add(" Application language "+ app.Language);    
 
             shadow_computation shadow_computer = new shadow_computation();
             //List<(Face, Face, Shadow_Configuration, Computation_status)> result;

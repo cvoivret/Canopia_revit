@@ -227,6 +227,8 @@ namespace canopia_lib
 
             // Retrieves the glass material label
             String glasslabel = LabelUtils.GetLabelFor(BuiltInCategory.OST_WindowsGlassProjection);
+            log.Add(" glass label : " + glasslabel );
+            glasslabel = "Glass";
 
             List<Solid> solids = new List<Solid>();
             try
@@ -236,7 +238,7 @@ namespace canopia_lib
             }
             catch
             {
-                //log.Add(" Faillure to obtain solids from "+window.Name);
+                log.Add(" Failure to obtain solids from "+window.Name);
             }
             //log.Add(" Number of solids " + solids.Count()); 
 
@@ -246,14 +248,15 @@ namespace canopia_lib
                 ElementId matId = solid.Faces.get_Item(0).MaterialElementId;
                 if (matId.IntegerValue == -1)
                     continue;
-                
                 Material mat = doc.GetElement(matId) as Material;
-                    //log.Add(" mat class " + mat.Name + " " + mat.MaterialCategory);
-                    if (mat.MaterialClass == glasslabel)
-                    {
+                
+                log.Add(" mat class " + mat.Name + " " + mat.MaterialCategory+" " + mat.MaterialClass);
+
+                if (mat.MaterialClass == glasslabel)
+                {
                         glassSolid.Add(solid);
-                        //log.Add("  Glass solid found ");
-                    }
+                        log.Add("  Glass solid found ");
+                }
                             
             }
 
@@ -276,18 +279,19 @@ namespace canopia_lib
                 var dot = w.Orientation.DotProduct(betweencenter);
 
                 //log.Add("            Dot with normal  " + dot);
+                wall_normal = w.Orientation;
                 if (dot > 0.0)
                 {
-                    //log.Add("            Inversion needed");
-                    wall_normal = -1 * w.Orientation;
+                    log.Add("            Inversion needed");
+                    //wall_normal = -1 * w.Orientation;
                 }
                 else
                 {
-                    wall_normal = w.Orientation;
-                    //log.Add("            Inversion  not needed");
+                    
+                    log.Add("            Inversion  not needed");
                 }
 
-
+                log.Add(" Wall normal " + wall_normal);
                 Solid s;
                 IList<CurveLoop> cll;
                 IList<CurveLoop> ucll = new List<CurveLoop>();
@@ -299,10 +303,10 @@ namespace canopia_lib
                     UV facecenter = new UV(0.5 * (bbuv.Min[0] + bbuv.Max[0]), 0.5 * (bbuv.Min[1] + bbuv.Max[1]));
 
                     // check face orientation with respect to corrected wall normal (colinear)
-                    //dot = wall_normal.DotProduct(face.ComputeNormal(facecenter));
+                    dot = wall_normal.DotProduct(face.ComputeNormal(facecenter));
 
-                    //log.Add("           face Area = " + face.Area + " dot " + dot);
-                    if (wall_normal.IsAlmostEqualTo(face.ComputeNormal(facecenter)) && face.Area >= 1.00 )//&& Math.Abs(dot - 1) < 0.0000001) // Valeur arbitraire, unit
+                    log.Add("           face Area = " + face.Area + " dot " + dot);
+                    if (wall_normal.IsAlmostEqualTo(face.ComputeNormal(facecenter)))// && face.Area >= 1.00 )//&& Math.Abs(dot - 1) < 0.0000001) // Valeur arbitraire, unit
                     {
 
                         cll = face.GetEdgesAsCurveLoops();
@@ -332,10 +336,10 @@ namespace canopia_lib
                                     //if (Math.Abs(dot2 + 1) < 0.000001)
                                     if( wall_normal.IsAlmostEqualTo(solidface.ComputeNormal(new UV(0.5, 0.5)).Negate()))
                                     {
-                                        //log.Add("       face dot *****" + dot2);
+                                        log.Add("   face dot *****" + dot2);
                                         facesToBeExtruded.Add(solidface);
-                                        //log.Add("   solidface center  " + solidface.Evaluate(new UV(0.5, 0.5)));
-                                        //log.Add("   original sub  er  " + face.Evaluate(new UV(0.5, 0.5)));
+                                        log.Add("   solidface center  " + solidface.Evaluate(new UV(0.5, 0.5)));
+                                        log.Add("   original sub  er  " + face.Evaluate(new UV(0.5, 0.5)));
                                     }
 
                                 }

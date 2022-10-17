@@ -52,14 +52,15 @@
             }
             catch
             {
-                //log.Add(" getglass surface fail ");
+                log.Add(" getglass surface fail ");
                 return temp_results;
             }
+            log.Add(" Nulber of surfaces found "+glassFaces.Count);
             for (int k = 0; k < glassSolids.Count(); k++)
             {
                 gface = glassFaces[k];
                 gsolid = glassSolids[k];
-                //log.Add(" Gface : " + gface.ComputeNormal(new UV(0.5, 0.5)));
+                log.Add(" Gface : " + gface.ComputeNormal(new UV(0.5, 0.5)));
                 //log.Add(" Gsolid : " + gsolid.Volume);
 
                 config = Shadow_Configuration.undefined;

@@ -26,7 +26,8 @@ namespace canopia_lib
                 walldata = new List<openingRatio_walldata>();
                 byroom = new openingRatio_byroom();
             }
-            public openingRatio_byroom byroom;
+
+            public openingRatio_byroom byroom { get; set; }
 
             public List<openingRatio_walldata> walldata { get; set; }
 
@@ -89,17 +90,15 @@ namespace canopia_lib
                 //log.Add(" Room Number " + room.Number);
                 //log.Add(" Number of wallopending data " + complete_data[key].Count);
 
-                openingRatio_data data = new openingRatio_data();
-                data.byroom.room_number = room.Number;
-                data.byroom.room_name = room.Name;
-                data.byroom.room_area = utils.sqf2m2(room.Area);
-
+                
 
                 openingRatio_byroom byroom = new openingRatio_byroom();
                 byroom.room_number = room.Number;
                 byroom.room_name = room.Name;
                 byroom.room_area = utils.sqf2m2(room.Area);
 
+                openingRatio_data data = new openingRatio_data();
+                
                 byroom_area.Clear();
                 bywall_opening_area.Clear();
 
@@ -133,16 +132,18 @@ namespace canopia_lib
                 {
                     log.Add("  No opening in this room -->problem ?\n");
                     byroom.opening_ratio = -1.0;
-                    data.byroom.opening_ratio = -1.0;
+                    
                 }
                 else
                 {
                     int largestOpeningIdx = bywall_opening_area.IndexOf(bywall_opening_area.Max());
                     double opening_ratio = bywall_opening_area.Sum() / byroom_area[largestOpeningIdx];
                     byroom.opening_ratio = opening_ratio;
-                    data.byroom.opening_ratio = opening_ratio;
+                    
                     log.Add("  === Opening ratio  " + opening_ratio + "\n");
                 }
+                data.byroom=byroom;
+
                 openingRatio_Byrooms.Add(byroom);
                 openingRatio_datas.Add(data);
 

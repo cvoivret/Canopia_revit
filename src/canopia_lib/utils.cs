@@ -129,16 +129,16 @@ namespace canopia_lib
                 //log.Add("Element type : " + element.GetType());
 
                 GeometryElement geoElement = element.get_Geometry(options);
-                //log.Add("       Intersecting element =  " + el.Id + "  Name " + el.Name);
-                //log.Add("  geo element ? " + geoElement.GetType());
+                
 
                 if (geoElement != null)
                 {
-
+                    
                     foreach (GeometryObject geoobj in geoElement)
                     {
                         //log.Add("       Type of geometric object  of " + geoobj.GetType());
                         //log.Add("       Geometry instance  of " + typeof(Solid));
+                        //log.Add("   material "+ geoobj.)
                         if (geoobj == null)
                         {
                             //log.Add(" geo obj null ");
