@@ -217,18 +217,22 @@ namespace canopia_lib
             {
                 return (solidlist, facesToBeExtruded, wall_normal);
             }
-
+            /*
             LocationCurve wallLocation = w.Location as LocationCurve;
             XYZ pt1 = wallLocation.Curve.GetEndPoint(0);//[0];
             XYZ pt2 = wallLocation.Curve.GetEndPoint(1);//[1];
-            
+            */
             double dot2;
             //log.Add("Hosted by" + window_host.Name + " ID " + window_host.Id);
 
             // Retrieves the glass material label
-            String glasslabel = LabelUtils.GetLabelFor(BuiltInCategory.OST_WindowsGlassProjection);
-            log.Add(" glass label : " + glasslabel );
-            glasslabel = "Glass";
+            List<String> glasslabels = new List<string>();
+                
+            //dirty trick to have french and EN version of glass label
+            glasslabels.Add("Glass");
+            glasslabels.Add(LabelUtils.GetLabelFor(BuiltInCategory.OST_WindowsGlassProjection));
+
+            //String glasslabel = "Verre";
 
             List<Solid> solids = new List<Solid>();
             try
@@ -252,10 +256,11 @@ namespace canopia_lib
                 
                 log.Add(" mat class " + mat.Name + " " + mat.MaterialCategory+" " + mat.MaterialClass);
 
-                if (mat.MaterialClass == glasslabel)
-                {
+                if (glasslabels.Contains(mat.MaterialClass))
+                //if (glasslabel==mat.MaterialClass)
+                    {
                         glassSolid.Add(solid);
-                        log.Add("  Glass solid found ");
+                        //log.Add("  Glass solid found ");
                 }
                             
             }
@@ -263,38 +268,15 @@ namespace canopia_lib
             foreach (Solid solid in glassSolid)
             {
 
-                // Check the position of the mass center of the solid
-                XYZ solidcenter = solid.ComputeCentroid();
-
-                Line w_cl = Line.CreateBound(new XYZ(pt1.X, pt1.Y, solidcenter.Z), new XYZ(pt2.X, pt2.Y, solidcenter.Z));
-                //log.Add("           Wall center endpoints " + w_cl.GetEndPoint(0) + " " + w_cl.GetEndPoint(1));
-                //projection of face center on the wall center line
-                XYZ proj = w_cl.Project(solidcenter).XYZPoint;
-                //log.Add("           Face center projection " + proj);
-
-                // Vector joining facecenter and its projection
-                XYZ betweencenter = solidcenter - proj;
-                //log.Add("            Vector between centers" + betweencenter);
-                // Ensure correct (pointing trough exterior) orientation of wall normal
-                var dot = w.Orientation.DotProduct(betweencenter);
-
-                //log.Add("            Dot with normal  " + dot);
+                
+                // If the wall is properly oriented (at sketching ), the wall_normal is pointing trough exterior
                 wall_normal = w.Orientation;
-                if (dot > 0.0)
-                {
-                    log.Add("            Inversion needed");
-                    //wall_normal = -1 * w.Orientation;
-                }
-                else
-                {
-                    
-                    log.Add("            Inversion  not needed");
-                }
-
-                log.Add(" Wall normal " + wall_normal);
+                
+               // log.Add(" Wall normal " + wall_normal);
                 Solid s;
                 IList<CurveLoop> cll;
                 IList<CurveLoop> ucll = new List<CurveLoop>();
+                double dot;
 
 
                 foreach (Face face in solid.Faces)
@@ -303,9 +285,9 @@ namespace canopia_lib
                     UV facecenter = new UV(0.5 * (bbuv.Min[0] + bbuv.Max[0]), 0.5 * (bbuv.Min[1] + bbuv.Max[1]));
 
                     // check face orientation with respect to corrected wall normal (colinear)
-                    dot = wall_normal.DotProduct(face.ComputeNormal(facecenter));
+                    //dot = wall_normal.DotProduct(face.ComputeNormal(facecenter));
 
-                    log.Add("           face Area = " + face.Area + " dot " + dot);
+                    //log.Add("           face Area = " + face.Area + " dot " + dot);
                     if (wall_normal.IsAlmostEqualTo(face.ComputeNormal(facecenter)))// && face.Area >= 1.00 )//&& Math.Abs(dot - 1) < 0.0000001) // Valeur arbitraire, unit
                     {
 
@@ -318,28 +300,29 @@ namespace canopia_lib
                         }
                         else
                         {
-
+                            // multiple curve loop (multi glass solid)
+                            // Need to create face by extrusion
                             foreach (CurveLoop curveloop in cll)
                             {
                                 //log.Add(" curveloop length " + curveloop.GetExactLength());
                                 ucll.Add(curveloop);
-                                s = GeometryCreationUtilities.CreateExtrusionGeometry(ucll, wall_normal, 60.0);
+                                s = GeometryCreationUtilities.CreateExtrusionGeometry(ucll, wall_normal.Negate(), 60.0);
                                 solidlist.Add(s);
                                 //log.Add("       cruveloop XX");
                                 foreach (Face solidface in s.Faces)
                                 {
 
-                                    dot2 = solidface.ComputeNormal(new UV(0.5, 0.5)).DotProduct(wall_normal);
+                                    //dot2 = solidface.ComputeNormal(new UV(0.5, 0.5)).DotProduct(wall_normal);
 
                                     //log.Add(String.Format("         face dot : {0:N9}  ", dot2));
                                     //Loking for dot==-1
                                     //if (Math.Abs(dot2 + 1) < 0.000001)
-                                    if( wall_normal.IsAlmostEqualTo(solidface.ComputeNormal(new UV(0.5, 0.5)).Negate()))
+                                    if( wall_normal.IsAlmostEqualTo(solidface.ComputeNormal(new UV(0.5, 0.5))))
                                     {
-                                        log.Add("   face dot *****" + dot2);
+                                        //log.Add("   face dot *****" + dot2);
                                         facesToBeExtruded.Add(solidface);
-                                        log.Add("   solidface center  " + solidface.Evaluate(new UV(0.5, 0.5)));
-                                        log.Add("   original sub  er  " + face.Evaluate(new UV(0.5, 0.5)));
+                                        //log.Add("   solidface center  " + solidface.Evaluate(new UV(0.5, 0.5)));
+                                        //log.Add("   original sub  er  " + face.Evaluate(new UV(0.5, 0.5)));
                                     }
 
                                 }

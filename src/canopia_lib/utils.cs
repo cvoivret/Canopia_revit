@@ -173,13 +173,19 @@ namespace canopia_lib
                                 foreach (GeometryObject o in instanceGeometryElement)
                                 {
                                     //log.Add("       type  "+ o.GetType());
+                                    if(o.GetType() != typeof(Solid))
+                                    {
+                                        continue;
+                                    }
+
                                     Solid sol = o as Solid;
+                                    
 
                                     if (sol != null & sol.Volume > 0.000001)
                                     {
                                         solids.Add(sol);
 
-                                        //log.Add(" Area volume instancegeometryelement= " + sol.);
+                                        //log.Add(" Area volume instancegeometryelement= " );
 
                                     }
                                     else
@@ -206,24 +212,7 @@ namespace canopia_lib
                 }
 
             }
-            /*
-            if (union)
-            {
-                log.Add(" Number of solidsssssssss "+solids.Count);
-                if (solids.Count > 1)
-                {
-                    Solid unionSolid = SolidUtils.Clone(solids[0]);
-                    log.Add(" Solid volumes " + solids[0].Volume);
-                    for (int i = 0; i < solids.Count; i++)
-                    {
-                        log.Add(" Solid volumes " + solids[i].Volume);
-                       BooleanOperationsUtils.ExecuteBooleanOperationModifyingOriginalSolid(unionSolid, solids[i], BooleanOperationsType.Union);
-                    }
-                    solids.Clear();
-                    solids.Add(unionSolid);
-                }
-                
-            }*/
+            
 
             return solids;
         }

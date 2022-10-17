@@ -55,12 +55,14 @@
                 log.Add(" getglass surface fail ");
                 return temp_results;
             }
-            log.Add(" Nulber of surfaces found "+glassFaces.Count);
+            log.Add(" Number of glass surfaces found "+glassFaces.Count);
             for (int k = 0; k < glassSolids.Count(); k++)
             {
                 gface = glassFaces[k];
                 gsolid = glassSolids[k];
-                log.Add(" Gface : " + gface.ComputeNormal(new UV(0.5, 0.5)));
+                //log.Add(" Gface : " + gface.ComputeNormal(new UV(0.5, 0.5)));
+                
+
                 //log.Add(" Gsolid : " + gsolid.Volume);
 
                 config = Shadow_Configuration.undefined;
@@ -76,7 +78,18 @@
                 else
                 {
                     //log.Add(" Number of cached element " + cached_solids.Count);
+                    try 
+                    { 
                     (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, gface, -sunDirection, 5, 5, 0, ref log);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Add(" shadowing fail ");
+                        config = Shadow_Configuration.undefined;
+                        status = Computation_status.faillure;
+                        log.Add(" Computation faillure ");
+                        continue;
+                    }
 
                     // No shadow candidates --> Full light / No shadow
                     if (shadow_candidates_solid.Count() == 0)
@@ -738,6 +751,7 @@
 
             Solid light = null;
             Solid shadow = null;
+            Solid back = null;
             double ext_length = 0.1;
             XYZ extrusion_dir;
             List<ElementId> idlist = new List<ElementId>();
@@ -775,6 +789,13 @@
             ogsf.SetSurfaceForegroundPatternColor(failColor);
             ogsf.SetCutForegroundPatternColor(failColor);
 
+            OverrideGraphicSettings ogback = new OverrideGraphicSettings();
+            ogback.SetSurfaceForegroundPatternId(fillPatternElement.Id);
+            Color backColor = new Color(254, 88, 114);
+            ogback.SetProjectionLineColor(backColor);
+            ogback.SetSurfaceForegroundPatternColor(backColor);
+            ogback.SetCutForegroundPatternColor(backColor);
+
             DirectShape ds;
 
 
@@ -787,6 +808,16 @@
                 status = result[i].Item4;
                 extrusion_dir = glass_face.ComputeNormal(new UV(0.5, 0.5));
 
+
+                back = GeometryCreationUtilities.CreateExtrusionGeometry(glass_face.GetEdgesAsCurveLoops(), -extrusion_dir, 6.0*ext_length);
+
+                //log.Add(" face area" + glass_face.Area);
+                ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                ds.ApplicationId = "Application id";
+                ds.ApplicationDataId = "Geometry object id";
+                ds.SetShape(new GeometryObject[] { back });
+                doc.ActiveView.SetElementOverrides(ds.Id, ogback);
+                idlist.Add(ds.Id);
 
                 if (status == Computation_status.faillure)
                 {
