@@ -7,11 +7,6 @@ Each functionnality is composed of three bricks : the core library, a revit comm
 Explore and have fun.
 
 
-## TODO
-- add pictures on buttons for solar analysis
-- Ventilation : compute opening ratio for a level
-- clean and comment
-- Find a way to properly log
 
 
 ## Compilation
