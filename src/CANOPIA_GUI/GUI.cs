@@ -42,7 +42,7 @@ namespace canopia_gui
             {
                 application.CreateRibbonTab(tab_name);
             }
-            catch(Exception ex)
+            catch(Exception )
             {
                 
             }

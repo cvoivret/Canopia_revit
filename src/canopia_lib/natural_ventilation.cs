@@ -81,8 +81,8 @@ namespace canopia_lib
             List<double> bywall_opening_area = new List<double>();
             //List<double> ratio = new List<double>();
 
-            double opening_area = 0.0;
-            double room_area = 0.0;
+            
+            
             foreach (ElementId key in complete_data.Keys)
             {
                 Room room = doc.GetElement(key) as Room;

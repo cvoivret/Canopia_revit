@@ -388,8 +388,8 @@ namespace canopia_gui
 
             // create a shared parameter to attach shadow analysis result to each window
 
-            bool spcreationOK;
-            Guid sfaguid, ESguid;
+           // bool spcreationOK;
+            Guid  ESguid;
             //(spcreationOK, sfaguid) = utils_room.createSharedParameterForRooms(doc, app, log);
             ESguid = utils.createDataStorageDisplay(doc, log);
 
@@ -700,7 +700,7 @@ namespace canopia_gui
                                                       ref log);
             log.Add(" SP creation ok ? " + spcreationOK + "  guid " + guid);
 
-            Dictionary<ElementId, List<ElementId>> id_display;
+            //Dictionary<ElementId, List<ElementId>> id_display;
 
 
             IList<Room> rooms = utils.filterRoomList(doc, ref log);

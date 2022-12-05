@@ -680,7 +680,7 @@ namespace canopia_lib
                             if (solidfilter.PassesFilter(doc, elementid))
                             {
                                 //log.Add("    Intersection opening and window ");
-                                Face external = null;
+                                //Face external = null;
                                 //double maxArea = 0.0;
                                 
                                 foreach (Face face in spl.Faces)
@@ -708,7 +708,7 @@ namespace canopia_lib
                                                 }
                                             }
                                         }
-                                        catch (Exception ex)
+                                        catch (Exception )
                                         {
                                             log.Add(" Error in offsetting  ");
                                         }

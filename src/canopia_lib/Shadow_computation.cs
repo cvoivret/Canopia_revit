@@ -55,7 +55,7 @@
                 log.Add(" getglass surface fail ");
                 return temp_results;
             }
-            log.Add(" Number of glass surfaces found "+glassFaces.Count);
+            //log.Add(" Number of glass surfaces found "+glassFaces.Count);
             for (int k = 0; k < glassSolids.Count(); k++)
             {
                 gface = glassFaces[k];
@@ -82,7 +82,7 @@
                     { 
                     (shadow_candidates_solid, proximity_max, shadow_candidates_id) = GetPossibleShadowingSolids(doc, gface, -sunDirection, 5, 5, 0, ref log);
                     }
-                    catch (Exception ex)
+                    catch (Exception )
                     {
                         log.Add(" shadowing fail ");
                         config = Shadow_Configuration.undefined;
@@ -425,10 +425,6 @@
 
         public static Face ProjectShadowByfaceunion(Document doc, Solid gsolid, Face gface, List<Solid> Candidates, XYZ extrusion_dir, double extrusion_dist, List<string> log)
         {
-            //FamilyItemFactory factory = doc.FamilyCreate;
-            //Form extruded = doc.FamilyCreate.NewExtrusionForm(true, ra, wall_normal.Multiply(10.0));
-            Stopwatch sw = new Stopwatch();
-            TimeSpan ts;
             
             BoundingBoxUV bbuv = gface.GetBoundingBox();
             UV facecenter = new UV(0.5 * (bbuv.Min[0] + bbuv.Max[0]), 0.5 * (bbuv.Min[1] + bbuv.Max[1]));
@@ -439,7 +435,6 @@
             Solid intersection = null;
 
 
-            sw.Restart();
             try
             {
                 s = GeometryCreationUtilities.CreateExtrusionGeometry(gface.GetEdgesAsCurveLoops(), extrusion_dir, extrusion_dist);
@@ -448,12 +443,7 @@
             {
 
             }
-            sw.Stop();
-            ts = sw.Elapsed;
-            //elapsedTime = String.Format("---- In extrusion      : {0:N5}  ms", ts.TotalMilliseconds);
-            //log.Add(elapsedTime);
-
-
+            
 
             if (s == null)
             {
@@ -464,29 +454,11 @@
             {
                 // log.Add("       Extrusion success ");
             }
-            sw.Restart();
-            /*
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            collector.OfClass(typeof(FamilyInstance));
-            collector.WherePasses(new ElementIntersectsSolidFilter(s));
-            sw.Stop();
-            ts = sw.Elapsed;
-            elapsedTime = String.Format("---- In solid collector      : {0:N5}  ms", ts.TotalMilliseconds);
-            log.Add(elapsedTime);
-            ICollection<ElementId> windowsID = collector.ToElementIds();
-            log.Add(" list of collected Id "+ windowsID.Count());
-            */
-            /*
-            DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-            ds.ApplicationId = "Application id";
-            ds.ApplicationDataId = "Geometry object id";
-            ds.SetShape(new GeometryObject[] { s });
-            log.Add("           Extrusion Volume " + s.Volume);
-            */
+           
+            
             IList<Solid> inter_list = new List<Solid>();
-            //log.Add(" list of solid candidates  " + Candidates.Count());
-
-            sw.Restart();
+            
+            
             foreach (Solid shad in Candidates)
             {
 
@@ -510,7 +482,7 @@
 
 
 
-                if (intersection != null && intersection.Volume >= 0.0000001)
+                if (intersection != null && intersection.Volume >= 0.000001)
                 {
                     inter_list.Add(intersection);
                     //log.Add(" Solid volume " + shad.Volume + " Intersection volume " + intersection.Volume);
@@ -542,26 +514,7 @@
                     log.Add("           Union partial faillure ");
                 }
             }
-            /*
-            OverrideGraphicSettings ogsf = new OverrideGraphicSettings();
-            //ogsf.SetSurfaceForegroundPatternId(fillPatternElement.Id);
-            Color failColor = new Color(255, 0, 0);
-            ogsf.SetProjectionLineColor(failColor);
-            ogsf.SetSurfaceForegroundPatternColor(failColor);
-            ogsf.SetCutForegroundPatternColor(failColor);
-
-            DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-            ds.ApplicationId = "Application id";
-            ds.ApplicationDataId = "Geometry object id";
-            ds.SetShape(new GeometryObject[] { union });
-            doc.ActiveView.SetElementOverrides(ds.Id, ogsf);
-            //log.Add("           Union volume " + union.Volume);
-              */
-
-            //log.Add(elapsedTime);
-            sw.Restart();
-
-
+            
             XYZ normal, start, end;
             List<Solid> extrudedfaces = new List<Solid>();
             List<Curve> curves = new List<Curve>();
@@ -583,12 +536,7 @@
                         try
                         {
                             extrudedfaces.Add(GeometryCreationUtilities.CreateExtrusionGeometry(face1.GetEdgesAsCurveLoops(), -extrusion_dir, 1.2 * extrusion_dist));
-                            /*DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
-                            ds.ApplicationId = "Application id";
-                            ds.ApplicationDataId = "Geometry object id";
-                            ds.SetShape(new GeometryObject[] { extrudedfaces.Last() });
-                            log.Add("           Extrusion Volume " + extrudedfaces.Last().Volume);
-                            */
+                           
                         }
                         catch
                         {
@@ -732,10 +680,7 @@
                     ext_face = face;
                 }
             }
-
-
-            //log.Add(elapsedTime);
-            sw.Restart();
+                 
 
             return ext_face;
 

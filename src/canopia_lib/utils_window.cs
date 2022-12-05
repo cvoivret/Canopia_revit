@@ -222,7 +222,7 @@ namespace canopia_lib
             XYZ pt1 = wallLocation.Curve.GetEndPoint(0);//[0];
             XYZ pt2 = wallLocation.Curve.GetEndPoint(1);//[1];
             */
-            double dot2;
+            //double dot2;
             //log.Add("Hosted by" + window_host.Name + " ID " + window_host.Id);
 
             // Retrieves the glass material label
@@ -254,7 +254,7 @@ namespace canopia_lib
                     continue;
                 Material mat = doc.GetElement(matId) as Material;
                 
-                log.Add(" mat class " + mat.Name + " " + mat.MaterialCategory+" " + mat.MaterialClass);
+                //log.Add(" mat class " + mat.Name + " " + mat.MaterialCategory+" " + mat.MaterialClass);
 
                 if (glasslabels.Contains(mat.MaterialClass))
                 //if (glasslabel==mat.MaterialClass)
@@ -276,7 +276,7 @@ namespace canopia_lib
                 Solid s;
                 IList<CurveLoop> cll;
                 IList<CurveLoop> ucll = new List<CurveLoop>();
-                double dot;
+                
 
 
                 foreach (Face face in solid.Faces)
