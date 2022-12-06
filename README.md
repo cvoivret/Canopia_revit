@@ -14,6 +14,7 @@ Open the solution in VScode and build it !
 
 ## Installation
 Follow the instruction given by [Autodesk](https://knowledge.autodesk.com/search-result/caas/simplecontent/content/lesson-1-the-basic-plug.html) to properly set your environement with the addin manifest that you can find in the bin folder.
+You can alternatively use the [addin-manager](https://github.com/chuongmep/RevitAddInManager) to test the different tools wihtout GUI and without restarting REVIT. 
 
 ## Screenshot
 ![Shadow](/doc/Shadow_on_windows.png)
