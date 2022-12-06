@@ -32,12 +32,10 @@ using System.Reflection;
 using System.Globalization;
 //using System.Maths;
 using System.Text;
-using System.Text.Json;
 
 using System.Linq;
 
 using canopia_lib;
-//using shadow_library2.utils;
 
 
 namespace canopia_nogui
@@ -692,15 +690,6 @@ namespace canopia_nogui
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
             File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
-
-
-            // Color window and door for checking purpose
-
-
-            //get wall geometry
-            //Select face with normal equal to orientation (extreior)
-            // extrude and show in one color for orientation
-            // extrude and show in other color for negate orientation
 
 
 

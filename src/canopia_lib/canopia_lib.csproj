@@ -25,12 +25,11 @@
 	<ItemGroup>
 		<Reference Include="RevitAPI">
 			<HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
-		</Reference>
-		<Reference Include="RevitAPIIFC">
-		  <HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPIIFC.dll</HintPath>
+			<CopyLocal>False</CopyLocal>
 		</Reference>
 		<Reference Include="RevitAPIUI">
 			<HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPIUI.dll</HintPath>
+			<CopyLocal>False</CopyLocal>
 		</Reference>
 	</ItemGroup>
 

@@ -25,9 +25,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="canopia_lib">
-			<HintPath>..\canopia_lib\bin\Debug\net4.8\canopia_lib.dll</HintPath>
-		</Reference>
 		<Reference Include="RevitAPI">
 			<HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
 		</Reference>

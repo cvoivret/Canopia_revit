@@ -10,27 +10,25 @@
 		<SignAssembly>true</SignAssembly>
 		<GenerateAssemblyInfo>true</GenerateAssemblyInfo>
 		<Deterministic>false</Deterministic>
+		<BaseOutputPath>bin</BaseOutputPath>
 	</PropertyGroup>
 
+
 	<ItemGroup>
-	  <PackageReference Include="Serilog" Version="2.11.0" />
-	  <PackageReference Include="Serilog.Sinks.Console" Version="4.0.1" />
-	  <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+		<ProjectReference Include="..\canopia_lib\canopia_lib.csproj">
+		  <CopyLocal>False</CopyLocal>
+		  <CopyLocalSatelliteAssemblies>False</CopyLocalSatelliteAssemblies>
+		</ProjectReference>
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\canopia_lib\canopia_lib.csproj" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Reference Include="canopia_lib">
-			<HintPath>..\canopia_lib\bin\Debug\net4.8\canopia_lib.dll</HintPath>
-		</Reference>
 		<Reference Include="RevitAPI">
 			<HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
+			<CopyLocal>False</CopyLocal>
 		</Reference>
 		<Reference Include="RevitAPIUI">
 			<HintPath>..\..\..\..\..\..\..\Program Files\Autodesk\Revit 2022\RevitAPIUI.dll</HintPath>
+			<CopyLocal>False</CopyLocal>
 		</Reference>
 	</ItemGroup>
 
