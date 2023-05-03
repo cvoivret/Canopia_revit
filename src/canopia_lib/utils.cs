@@ -614,8 +614,6 @@ namespace canopia_lib
 
                 result.Add(id, new List<wallOpening_data> ());
 
-                
-                
                 foreach( (Solid,Solid,Wall,bool) wallportion in data_inter[id])
                 {
                     intersection_solid = wallportion.Item1;

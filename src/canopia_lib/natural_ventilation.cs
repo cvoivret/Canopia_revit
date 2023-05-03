@@ -164,6 +164,10 @@ namespace canopia_lib
             }
             return (openingRatio_Byrooms, openingRatio_datas);
         }
+
+
+        
+
         public static void openingRatio_csv(Document doc, List<openingRatio_byroom> byroom, ref List<string> log)
         {
             string filename = Path.Combine(Path.GetDirectoryName(
@@ -177,6 +181,7 @@ namespace canopia_lib
             }
 
         }
+
         public static void openingRatio_json(Document doc, List<openingRatio_data> data, ref List<string> log)
         {
             string filename = Path.Combine(Path.GetDirectoryName(
@@ -352,6 +357,370 @@ namespace canopia_lib
             return iddict;
         }
 
+        public static void sweepingRooms2(Document doc, IList<Room> roomlist, ref List<string> log)
+        {
+
+            int MinimumDistance(double[] distance, bool[] shortestPathTreeSet, int verticesCount)
+            {
+                double min = int.MaxValue;
+                int minIndex = 0;
+
+                for (int v = 0; v < verticesCount; ++v)
+                {
+                    if (shortestPathTreeSet[v] == false && distance[v] <= min)
+                    {
+                        min = distance[v];
+                        minIndex = v;
+                    }
+                }
+
+                return minIndex;
+            }
+
+
+
+            double[] Dijkstra(double[,] graph, int source,  int verticesCount, ref List<string> log2)
+            {
+                double[] distance = new double[verticesCount];
+                bool[] shortestPathTreeSet = new bool[verticesCount];
+
+                for (int i = 0; i < verticesCount; ++i)
+                {
+                    distance[i] = int.MaxValue;
+                    shortestPathTreeSet[i] = false;
+                }
+
+                distance[source] = 0;
+
+                for (int count = 0; count < verticesCount - 1; ++count)
+                {
+                    int u = MinimumDistance(distance, shortestPathTreeSet, verticesCount);
+                    shortestPathTreeSet[u] = true;
+
+                    for (int v = 0; v < verticesCount; ++v)
+                        if (!shortestPathTreeSet[v] && Convert.ToBoolean(graph[u, v]) && distance[u] != int.MaxValue && distance[u] + graph[u, v] < distance[v])
+                            distance[v] = distance[u] + graph[u, v];
+                }
+
+                string ss = null;
+                for (int ii = 0; ii < shortestPathTreeSet.Count(); ++ii)
+                { ss += shortestPathTreeSet[ii] + " "; }
+                //log2.Add(ss);
+
+                return distance;
+                /*
+                double mindist = double.PositiveInfinity;
+                int minidx = 0;
+                for (int i = 0; i < verticesCount; ++i)
+                {
+                    log2.Add(i + " " + distance[i]);
+                    if( distance[i] < mindist)
+                    { 
+                        mindist= distance[i]; 
+                        minidx = i;
+                    }
+                }
+
+                log2.Add(" graph min dist " + mindist + " " + minidx);
+                */
+
+            }
+
+
+
+
+            FilteredElementCollector collector_w = new FilteredElementCollector(doc);
+            ICollection<Element> windows = collector_w.OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_Windows).ToElements();
+            Dictionary<ElementId, List<ElementId>> windowbyroom = new Dictionary<ElementId, List<ElementId>>();
+            Dictionary<ElementId, XYZ> windowlocationpoint = new Dictionary<ElementId, XYZ>();
+
+            FilteredElementCollector collector = new FilteredElementCollector(doc);
+            Func<View3D, bool> isNotTemplate = v3 => !(v3.IsTemplate);
+            View3D view3D = collector.OfClass(typeof(View3D)).Cast<View3D>().First<View3D>(isNotTemplate);
+
+            foreach (Element win in windows)
+            {
+                FamilyInstance fi = win as FamilyInstance;
+
+                if (fi.FromRoom != null)
+                {
+                    if(windowbyroom.ContainsKey(fi.FromRoom.Id))
+                    {
+                        windowbyroom[fi.FromRoom.Id].Add(win.Id);
+                    }
+                    else
+                    {
+                        windowbyroom[fi.FromRoom.Id]=new List<ElementId>();
+                        windowbyroom[fi.FromRoom.Id].Add(win.Id);
+
+                    }
+                    
+                    
+                }
+                //projeter le point sur plan de la boudarycurve de la piece
+                //verifier l'intersection avec un segment ? projeter sur le segement le plus proche ?
+                
+                    //log.Add(win.Name + " " + " " + fi.FromRoom.Name);
+            }
+
+
+            SpatialElementBoundaryOptions options = new SpatialElementBoundaryOptions();
+            options.SpatialElementBoundaryLocation = SpatialElementBoundaryLocation.Finish;
+            
+            foreach (Room room in roomlist)
+            {
+                
+                if (room == null)
+                {
+                    log.Add(" Nulll room ");
+                    continue;
+                }
+                if(! windowbyroom.ContainsKey(room.Id))
+                {
+                    log.Add(" No window in room");
+                    continue;
+                }
+                if( windowbyroom[room.Id].Count <2)
+                {
+                    log.Add(" Only one window in this room, no need to compute sweeping ");
+                    continue;
+                }
+                log.Add(" Room name " + room.Name + " Area " + utils.sqf2m2(room.Area));
+                log.Add(" Room Number " + room.Number);
+                
+                IList<IList<BoundarySegment>> bsl = room.GetBoundarySegments(options);
+
+                log.Add(" number of segment " + bsl[0].Count());
+
+                List<XYZ> vertices = new List<XYZ>();
+                double[,] adjency_boundary;
+                double[,] adjency_window;
+                List<int> indices = new List<int>();
+                //List<(int,int)> boundary_edges = new List<(int,int)>();
+                //List<(int, int)> not_boundary_edges = new List<(int, int)>();
+
+
+                // test if there is a direct path between windows
+                // if yes, compute distance
+                // if no, find shortest path
+                List<XYZ> locpoints = new List<XYZ>();
+                List<ElementId> ids = new List<ElementId>();
+                foreach (ElementId id in windowbyroom[room.Id])
+                {
+                    locpoints.Add((doc.GetElement(id).Location as LocationPoint).Point);
+                    ids.Add(id);
+                }
+
+                ElementCategoryFilter windowfilter = new ElementCategoryFilter(BuiltInCategory.OST_Windows, false);
+                ElementCategoryFilter wallfilter = new ElementCategoryFilter(BuiltInCategory.OST_Walls, false);
+                LogicalOrFilter filt = new LogicalOrFilter(windowfilter, wallfilter);
+
+
+                ReferenceIntersector refIntersector1 = new ReferenceIntersector(filt, FindReferenceTarget.Face, view3D);
+
+                for (int ii = 0; ii < locpoints.Count - 1; ii++)
+                {
+                    for (int jj = ii + 1; jj < locpoints.Count; jj++)
+                    {
+                        IList<ReferenceWithContext> rcl = refIntersector1.Find(locpoints[ii], locpoints[jj] - locpoints[ii]);
+
+                        log.Add(" Intersection locpoint between " + ii + " " + (jj));
+                        foreach (ReferenceWithContext r in rcl)
+                        {
+                            if(r.GetReference().ElementId !=ids[ii] )
+                            log.Add(doc.GetElement(r.GetReference().ElementId).Name + " " + r.GetReference().ElementId + " " + r.Proximity);
+
+                        }
+                    }
+
+
+                }
+
+                // check the intersected object with the id of the windows and respective hosting wall
+                // use a set
+                // what lay in set after removal must be candidate of intersection --> shortest path 
+
+
+
+                int k = 0;
+                foreach(BoundarySegment bs in bsl[0])
+                {
+                    vertices.Add(bs.GetCurve().GetEndPoint(0));
+                    //log.Add(bs.GetCurve().GetEndPoint(0).ToString());
+                    indices.Add(k);
+                    k++;
+
+                }
+
+                adjency_boundary = new double[vertices.Count, vertices.Count];
+
+                (int, int) idxmaxdist = (-1, -1);
+                double maxdist = -10.0;
+
+                for (int i = 0; i < vertices.Count; i++)
+                {
+                    int next = i + 1;
+                    if (next == vertices.Count)
+                    {
+                        next = 0;
+                    }
+                    
+
+                    for (int j = 0; j < vertices.Count; j++)
+                    {
+                        if (j == i || j == i - 1 || j == i + 1)
+                        {
+                            // exclude boundary edges (consecutives)
+                            // exclude computation of distance to self
+                            continue;
+                        }
+                        adjency_boundary[i, j] = vertices[i].DistanceTo(vertices[j]);
+                        //log.Add(" dist "+ adjency_dist[i,j]);
+                        if (adjency_boundary[i, j] > maxdist)
+                        {
+                            maxdist = adjency_boundary[i, j];
+                            idxmaxdist = (i, j);
+                            //log.Add(" +++++++++++++++ max just found"+idxmaxdist);
+                        }
+                    }
+
+                }
+
+                List<XYZ> windowvertices = new List<XYZ>();
+                if( windowbyroom.ContainsKey(room.Id))
+                foreach (ElementId id in windowbyroom[room.Id])
+                {
+                    XYZ loc = (doc.GetElement(id).Location as LocationPoint).Point;
+                    double mindist = double.PositiveInfinity;
+                    int idxmin=-1;
+                    log.Add(" Loc point "+loc.ToString());
+                    IList<BoundarySegment> bs = bsl[0];
+
+                        for(int i=0; i<bs.Count();i++)
+                        {
+                            double d = bs[i].GetCurve().Distance(loc);
+                            if ( d<mindist)
+                            {
+                                mindist = d;
+                                idxmin = i;
+                            }
+                            
+                        }
+                    IntersectionResult res=  bs[idxmin].GetCurve().Project(loc);
+                    windowvertices.Add(res.XYZPoint);
+                    log.Add(" Window ID " + id);
+
+                }
+
+                List<XYZ> allvertices = vertices.Concat(windowvertices).ToList();
+                adjency_window = new double[allvertices.Count, allvertices.Count];
+                log.Add(" Number of vertices without  window points " + vertices.Count);
+                log.Add(" Number of vertices with window " + allvertices.Count);
+                
+
+
+                for (int i = 0; i < allvertices.Count; i++)
+                {
+                    
+                    for (int j = 0; j < allvertices.Count; j++)
+                    {
+                        if (j == i || (i<vertices.Count && j<vertices.Count) || (i >= vertices.Count && j >= vertices.Count))
+                        {
+                            // exclude computation of distance to self
+                            continue;
+                        }
+                        adjency_window[i, j] = allvertices[i].DistanceTo(allvertices[j]);
+
+                    }
+
+                }
+
+                log.Add(" size of adjency " + adjency_window.GetUpperBound(0) + " " + adjency_window.GetUpperBound(1));
+                for (int i = 0; i <= adjency_window.GetUpperBound(0); i++)
+                {
+                    string s = null;
+                    for (int j = 0; j <= adjency_window.GetUpperBound(1); j++)
+                    {
+                        s = s + adjency_window[i, j] + " ";
+                    }
+                    log.Add(s + "\n");
+                }
+
+
+                double[] dist=Dijkstra(adjency_boundary, idxmaxdist.Item1, adjency_boundary.GetUpperBound(0)+1,ref log);
+                log.Add("Shortest path between farther points : " + idxmaxdist.Item1 + " --> " + idxmaxdist.Item2 + " dist : " + dist[idxmaxdist.Item2]);
+
+                for (int ii = vertices.Count; ii < allvertices.Count-1; ii++)
+                {
+                    double[] distw = Dijkstra(adjency_window, ii, adjency_window.GetUpperBound(0) + 1, ref log);
+                    for (int jj = ii + 1; jj < allvertices.Count; jj++)
+                    {
+                        log.Add(" distance between  " + ii + " & " + jj + " " + distw[jj].ToString());
+                    }
+                }
+                
+
+                
+
+                ElementCategoryFilter categoryFilter = new ElementCategoryFilter(BuiltInCategory.OST_Windows,false);
+
+
+                ElementClassFilter filter = new ElementClassFilter( typeof(Floor),false);
+                
+                ReferenceIntersector refIntersector = new ReferenceIntersector(filter, FindReferenceTarget.Face, view3D);
+
+                for (int ii = vertices.Count; ii < allvertices.Count - 1; ii++)
+                {
+                    for (int jj = ii + 1; jj < allvertices.Count; jj++)
+                    {
+                        IList<ReferenceWithContext> rcl = refIntersector.Find(allvertices[ii], allvertices[jj]- allvertices[ii]);
+
+                        log.Add(" Intersection between " + ii + " " + (jj));
+                        foreach (ReferenceWithContext r in rcl)
+                        {
+                            log.Add(doc.GetElement(r.GetReference().ElementId).Name+" "+r.GetReference().ElementId + " " + r.Proximity);
+                            
+                        }
+                        
+                    }
+
+
+                }
+
+                using (Transaction transaction = new Transaction(doc, "line"))
+                {
+                    transaction.Start();
+
+                    Line line = Line.CreateBound(vertices[idxmaxdist.Item1], vertices[idxmaxdist.Item2]);
+                    DetailCurve dl = doc.Create.NewDetailCurve(doc.ActiveView, line);
+
+                    for (int ii = vertices.Count; ii < allvertices.Count - 1; ii++)
+                    {
+                        for (int jj = ii + 1; jj < allvertices.Count; jj++)
+                        {
+                            Line line2 = Line.CreateBound(allvertices[ii], allvertices[jj]);
+                            log.Add(" direct line " + ii + " " + (jj) + " " + line2.Length);
+                            DetailCurve dl2 = doc.Create.NewDetailCurve(doc.ActiveView, line2);
+                        }
+                        
+                        
+                    }
+                    transaction.Commit();
+                }
+
+                // build another adjency list linking each window point to each vertices
+                
+
+
+
+
+
+            }
+            
+
+        }
     }
+
+
 }
 

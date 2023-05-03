@@ -32,6 +32,8 @@ using System.Reflection;
 using System.Globalization;
 //using System.Maths;
 using System.Text;
+using System.Text.Json;
+using System.Threading;
 
 using System.Linq;
 
@@ -173,331 +175,363 @@ namespace canopia_nogui
     }
 
 
-    //[Transaction(TransactionMode.Manual)]
-
-    //class noGUI_window_passive : IExternalCommand
-    //{
-    //    public class sun_shad
-    //    {
-    //        public DateTime date { get; set; }
-    //        public double shadowFraction { get; set; }
-
-    //    }
-    //    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
-    //    {
-
-    //        string filename = Path.Combine(Path.GetDirectoryName(
-    //           Assembly.GetExecutingAssembly().Location),
-    //           "passive_shadow.log");
-    //        List<string> log = new List<string>();
-
-    //        log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start Shadow at .\r\n", DateTime.Now));
-    //        File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
-
-    //        UIApplication uiapp = commandData.Application;
-    //        Document doc = uiapp.ActiveUIDocument.Document;
-    //        View view = doc.ActiveView;
-    //        Application app = uiapp.Application;
-    //        UIDocument uidoc = commandData.Application.ActiveUIDocument;
-    //        SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
-    //        SiteLocation siteloc = doc.SiteLocation;
-
-
-    //        XYZ sun_dir;
-    //        //string filenamedate = "C:\\Users\\cvoivret\\Desktop\\date.txt";
-    //        //string[] lines = File.ReadAllLines(filenamedate);
-    //        //convert to date...
-    //        // try operation on date to see if casting ok
-    //        //try to set revit date
-    //        List<DateTime> daysofinterest = new List<DateTime>();
-    //        List<DateTimeOffset> daysofinterest2 = new List<DateTimeOffset>();
-
-    //        List<DateTimeOffset> dates = new List<DateTimeOffset>();
-    //        double timeOffset = sunSettings.TimeZone;
-    //        TimeSpan ts = new TimeSpan((int)timeOffset, 0, 0);
-    //        string offset = String.Format("{0:0.##}", timeOffset) + ":00 ";
-    //        string date = "1/17/2022 0:00:00+" + offset;
-
-    //        log.Add(date);
-
-
-    //        DateTimeOffset dto= DateTimeOffset.Parse(date, CultureInfo.InvariantCulture);
-    //        log.Add(" DTO " + dto+ " DTO UTC "+ dto.UtcDateTime+ " dt "+dto.DateTime + " kind "+dto.UtcDateTime.Kind);
-    //        //log.Add(" toLocaltime " + dto.ToLocalTime() + " localdatetime " + dto.LocalDateTime );
-
-    //        TimeZoneInfo projecttzi = TimeZoneInfo.CreateCustomTimeZone("ptz", ts, "Revit project TZI", "Revit project TZI");
-
-
-    //        daysofinterest2.Add(DateTimeOffset.Parse("1/17/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("2/16/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("3/16/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("4/15/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("5/15/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("6/11/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("7/17/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("8/16/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("9/15/2022 0:00:00+"+offset,CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("10/15/2022 0:00:00+"+offset, CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("11/14/2022 0:00:00+"+offset, CultureInfo.InvariantCulture));
-    //        daysofinterest2.Add(DateTimeOffset.Parse("12/10/2022 0:00:00+"+offset, CultureInfo.InvariantCulture));
-
-
-    //        daysofinterest.Add(DateTime.Parse("1/17/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("2/16/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("3/16/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("4/15/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("5/15/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("6/11/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("7/17/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("8/16/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("9/15/2022 0:00:00 " , new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("10/15/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("11/14/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-    //        daysofinterest.Add(DateTime.Parse("12/10/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
-
-    //        DateTimeOffset currentdate = new DateTimeOffset();
-    //        foreach (DateTimeOffset d in daysofinterest2)
-    //        {
-    //            dates.Add(d);
-    //            DateTimeOffset next = d.AddDays(1);
-    //            currentdate = d;
-    //            while (currentdate < next)
-    //            {
-    //                currentdate = currentdate.AddHours(1);
-    //                dates.Add(currentdate);
-    //            }
-    //        }
-
-
-
-    //        /*
-    //        using (Transaction t = new Transaction(doc))
-    //        {
-    //            t.Start("Sun position update");
-    //            int id = 0;
-
-
-    //                foreach (DateTime d in dates)
-    //                {
-    //                    // rise and set in UTC
-    //                    DateTime localsunrise = sunSettings.GetSunrise(d.Date);//.AddHours(sunSettings.TimeZone); // sunrise on April 20, 2011
-    //                    DateTime localsunset  = sunSettings.GetSunset(d.Date); // sunset on April 22, 2011
-    //                                                                           //DateTimeOffset localsunrise1 = new DateTimeOffset(sunSettings.GetSunrise(d.Date), ts);//.AddHours(sunSettings.TimeZone); // sunrise on April 20, 2011
-    //                                                                           //DateTimeOffset localsunset = new DateTimeOffset(sunSettings.GetSunset(d.Date), ts); // sunset on April 22, 2011
-
-    //                    //log.Add("localsunrise.kind "+localsunrise.Kind+ "  "+localsunrise.ToLocalTime() + " " + localsunrise.ToUniversalTime());
-    //                    //log.Add(" Timezone " + sunSettings.TimeZone.ToString());
-    //                    //TimeSpan ts = new TimeSpan(10, 0, 0);
-    //                    //TimeSpan ts = new TimeSpan((int)sunSettings.TimeZone, 0, 0);
-    //                    //log.Add(" Timespan " + ts.ToString());
-
-    //                    sunSettings.StartDateAndTime = d;
-    //                    //log.Add(" current time from revit " + sunSettings.StartDateAndTime);
-
-    //                    sun_dir = utils.GetSunDirection(view);
-    //                    //log.Add(localsunrise.ToLocalTime() + " ** " + );
-    //                    if( d> localsunrise.ToLocalTime() & d < localsunset.ToLocalTime())
-    //                    { 
-    //                        log.Add(sun_dir.ToString()+" "+d+" JOUR "); 
-    //                    }
-    //                    else
-    //                    {
-    //                        log.Add(sun_dir.ToString() + " " + d + " NUIT ");
-    //                    }
-    //                    //log.Add(siteloc.ConvertToProjectTime(localsunrise) + "  " + siteloc.ConvertToProjectTime(localsunset));
-    //                    //log.Add(d  +" "+ sun_dir.ToString());
-    //                    //log.Add("\n");
-
-    //                    //log.Add(" size " + table[id].Count());
-    //                }
-    //            log.Add("\n");
-
-
-    //            t.RollBack();
-    //        }*/
-
-
-    //        //DateTime datetest = new DateTime();
-
-    //        //DateTime firstdate =DateTime.Parse("1 / 1 / 2022 0:00:0 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal);
-    //        //DateTime lastdate = DateTime.Parse("12 / 31 / 2022 23:00:0 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal);
-
-    //        /*foreach (string line in lines)
-    //        {
-    //            datetest = DateTime.Parse(line, new CultureInfo("en-US"), DateTimeStyles.AssumeLocal);
-    //            log.Add(datetest.Kind.ToString());//local time
-    //            dates.Add(datetest);
-    //        }*/
-    //        /*
-    //        datetest = firstdate;
-    //        while ( datetest < lastdate)
-    //        {
-    //            datetest=datetest.AddHours(1);
-    //            dates.Add(datetest);
-    //            log.Add(" Number of dates "+ dates.Count);  
-    //        }*/
-    //        //Console.WriteLine(DateTime.Parse(line));
-
-
-
-
-
-
-
-    //        log.Add(" Application language " + app.Language);
-
-    //        shadow_computation shadow_computer = new shadow_computation();
-    //        //List<(Face, Face, Shadow_Configuration, Computation_status)> result;
-    //        // to track of created volumes for display/hide
-    //        IList<ElementId> win_ref_display;
-    //        List<ElementId> all_ref_display = new List<ElementId>();
-
-
-
-
-    //        // create a shared parameter to attach shadow analysis result to each window
-    //        bool spcreationOK;
-    //        Guid sfaguid, ESguid;
-    //        (spcreationOK, sfaguid) = utils.createSharedParameter(doc,
-    //                                                                app,
-    //                                                                "shadowFractionArea",
-    //                                                                "Fraction of shadowed glass surface for direct sunlight only",
-    //                                                               doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows),
-    //                                                               ref log);
-    //        //(spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
-
-    //        ESguid = utils.createDataStorageDisplay(doc, log);
-    //        //ESguid = shadow_computer.ESGuid;
-    //        //Collect windows
-    //        Options options = new Options();
-    //        options.ComputeReferences = true;
-    //        //FilteredElementCollector collector_w = new FilteredElementCollector(doc);
-    //        ICollection<Element> windows;
-
-    //        // Get the element selection of current document.
-    //        Selection selection = uidoc.Selection;
-    //        ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
-
-    //        if (0 == selectedIds.Count)
-    //        {
-    //            // If no elements selected.
-    //            FilteredElementCollector collector_w = new FilteredElementCollector(doc);
-    //            windows = collector_w.OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_Windows).ToElements();
-    //        }
-    //        else
-    //        {
-    //            FilteredElementCollector collector_w = new FilteredElementCollector(doc, selectedIds);
-    //            windows = collector_w.OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_Windows).ToElements();
-    //        }
-    //        if (windows.Count == 0)
-    //        {
-    //            TaskDialog.Show("Revit", "No window to compute shadow (select some or select nothing)");
-    //        }
-
-
-
-    //        List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
-    //        List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>> lresults =
-    //            new List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>>();
-
-
-
-
-    //        Dictionary<int, List<sun_shad>> table = new Dictionary<int, List<sun_shad>>();
-
-    //        DateTime utcsunrise;
-    //        DateTime utcsunset;
-    //        double sfa = 0;
-
-    //        using (Transaction t = new Transaction(doc))
-    //        {
-    //            t.Start("Sun position update");
-    //            int id = 0;
-    //            for (int i = 0; i < windows.Count; i++)
-    //            {
-    //                Element window = windows.ToList()[i];
-    //                id = window.Id.IntegerValue;
-    //                log.Add(" Window Name " + window.Name + " Id " + window.Id);
-    //                table.Add(id, new List<sun_shad>());
-
-    //                foreach (DateTimeOffset d in dates)
-    //                {
-    //                    log.Add(" \n ");// start local " + sunSettings.StartDateAndTime+"  UTC "+ sunSettings.StartDateAndTime.ToUniversalTime());
-    //                    DateTime UTCprojectdate = DateTime.SpecifyKind(d.UtcDateTime, DateTimeKind.Utc);
-    //                    DateTime LOCprojectdate = DateTime.SpecifyKind(d.DateTime, DateTimeKind.Utc);
-    //                    log.Add(" UTC projectdate " + UTCprojectdate+ " kind "+ UTCprojectdate.Kind);
-    //                    //log.Add(" converttimetoutc " + TimeZoneInfo.ConvertTimeToUtc(UTCprojectdate, projecttzi));
-    //                    log.Add(" convertime " + TimeZoneInfo.ConvertTime(UTCprojectdate, projecttzi));
-    //                    log.Add(" convertimefromutc " + TimeZoneInfo.ConvertTimeFromUtc(UTCprojectdate, projecttzi));
-
-
-    //                    sunSettings.StartDateAndTime = UTCprojectdate;
-
-
-    //                    utcsunrise = sunSettings.GetSunrise(LOCprojectdate);
-    //                    utcsunset = sunSettings.GetSunset(LOCprojectdate);
-    //                    sun_dir = utils.GetSunDirection(view);
-    //                    log.Add(" Kind " + utcsunrise.Kind );
-    //                    log.Add(" UTC rise " + utcsunrise + " rise utc " + utcsunrise.ToUniversalTime());
-    //                    log.Add(" UTCproj rise " + sunSettings.GetSunrise(UTCprojectdate));
-
-    //                    log.Add(" Converted rise " + TimeZoneInfo.ConvertTimeFromUtc(utcsunrise, projecttzi));
-    //                    log.Add(" Converted rise " + TimeZoneInfo.ConvertTimeFromUtc(utcsunrise, projecttzi).Kind);
-
-    //                    log.Add(" revit conv2project " + siteloc.ConvertFromProjectTime(DateTime.SpecifyKind(d.DateTime, DateTimeKind.Unspecified)));
-    //                    //log.Add(" UTC local rise " + localsunrise.ToUniversalTime() + " set " + localsunset.ToUniversalTime());
-    //                    sun_shad ss = new sun_shad();
-    //                    ss.date = TimeZoneInfo.ConvertTime(UTCprojectdate, projecttzi);
-
-    //                    //log.Add(" date local " + d + " UTC "+ d.ToUniversalTime()+" ");
-    //                    //DateTimeOffset dto = new DateTimeOffset(d, new TimeSpan(10,0,0));
-    //                    //log.Add(" dto " + dto);
-
-    //                    if (d > utcsunrise & d < utcsunset)
-    //                    {
-    //                        // DAY
-    //                        log.Add(sun_dir.ToString() + " " + d + " JOUR ");
-
-    //                        results = shadow_computation.ComputeShadowOnWindow(doc, window, sun_dir, log);
-    //                        sfa = shadow_computation.AnalyzeShadowOnWindow(results);
-    //                    }
-    //                    else
-    //                    {
-    //                        //NIGHT
-    //                        log.Add(sun_dir.ToString() + " " + d + " NUIT ");
-    //                        sfa = -2.0;
-    //                    }
-    //                    ss.shadowFraction = sfa;
-
-    //                    table[id].Add(ss);
-    //                    //log.Add(" size " + table[id].Count());
-    //                }
-    //                log.Add(" Number of sfa values : " + table[id].Count());
-
-    //            }
-    //            t.RollBack();
-    //        }
-
-
-    //        string filename2 = Path.Combine(Path.GetDirectoryName(
-    //               Assembly.GetExecutingAssembly().Location),
-    //               "sun_data.json");
-
-    //        var options2 = new JsonSerializerOptions { WriteIndented = true };
-    //        string jsonString = JsonSerializer.Serialize(table, options2);
-
-    //        File.WriteAllText(filename2, jsonString);
-
-
-    //        log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
-    //        File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
-
-
-    //        return Result.Succeeded;
-
-    //    }
-
-    //}
+    [Transaction(TransactionMode.Manual)]
+
+    class noGUI_window_passive : IExternalCommand
+    {
+        public class sun_shad
+        {
+            public DateTime date { get; set; }
+            public double shadowFraction { get; set; }
+
+        }
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "passive_shadow.log");
+            List<string> log = new List<string>();
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start Shadow at .\r\n", DateTime.Now));
+            File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+
+            UIApplication uiapp = commandData.Application;
+            Document doc = uiapp.ActiveUIDocument.Document;
+            View view = doc.ActiveView;
+            Application app = uiapp.Application;
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            SunAndShadowSettings sunSettings = view.SunAndShadowSettings;
+            SiteLocation siteloc = doc.SiteLocation;
+
+
+            XYZ sun_dir;
+
+            CultureInfo culture1 = CultureInfo.CurrentCulture;
+            CultureInfo culture2 = Thread.CurrentThread.CurrentCulture;
+            CultureInfo newCulture = new CultureInfo("en-US");
+            CultureInfo.CurrentCulture = newCulture;
+            culture1 = CultureInfo.CurrentCulture;
+            culture2 = Thread.CurrentThread.CurrentCulture;
+
+            List<DateTimeOffset> dates = new List<DateTimeOffset>();
+            double timeOffset = sunSettings.TimeZone;
+            TimeSpan ts = new TimeSpan((int)timeOffset, 0, 0);
+            string offset = String.Format("{0:0.##}", timeOffset) + ":00 ";
+
+
+            log.Add(String.Format("The current culture is {0}", CultureInfo.CurrentCulture.Name));
+            log.Add(String.Format("The two CultureInfo objects are equal: {0}",
+                              culture1 == culture2));
+            log.Add(culture1.DateTimeFormat.ToString());
+
+            string filenamedate = "C:\\Users\\cvoivret\\Documents\\bricolage\\anthony\\Selecteddatetimes.txt";
+            string[] lines = File.ReadAllLines(filenamedate);
+
+            List<DateTimeOffset> doi = new List<DateTimeOffset>();
+            foreach( string line in lines)
+            {
+                DateTime date1;
+                DateTime.TryParse(line,out date1);
+                doi.Add(date1);
+                log.Add(date1.Kind.ToString());
+
+            }
+            //log.Add()
+            
+            //convert to date...
+            // try operation on date to see if casting ok
+            //try to set revit date
+            List<DateTime> daysofinterest = new List<DateTime>();
+            List<DateTimeOffset> daysofinterest2 = new List<DateTimeOffset>();
+
+            
+            string date = "1/17/2022 0:00:00+" + offset;
+
+            log.Add(date);
+
+
+            DateTimeOffset dto = DateTimeOffset.Parse(date, CultureInfo.InvariantCulture);
+            log.Add(" DTO " + dto + " DTO UTC " + dto.UtcDateTime + " dt " + dto.DateTime + " kind " + dto.UtcDateTime.Kind);
+            //log.Add(" toLocaltime " + dto.ToLocalTime() + " localdatetime " + dto.LocalDateTime );
+
+            TimeZoneInfo projecttzi = TimeZoneInfo.CreateCustomTimeZone("ptz", ts, "Revit project TZI", "Revit project TZI");
+
+
+            daysofinterest2.Add(DateTimeOffset.Parse("1/17/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("2/16/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("3/16/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("4/15/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("5/15/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("6/11/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("7/17/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("8/16/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("9/15/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("10/15/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("11/14/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+            daysofinterest2.Add(DateTimeOffset.Parse("12/10/2022 0:00:00+" + offset, CultureInfo.InvariantCulture));
+
+            /*
+            daysofinterest.Add(DateTime.Parse("1/17/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("2/16/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("3/16/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("4/15/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("5/15/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("6/11/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("7/17/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("8/16/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("9/15/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("10/15/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("11/14/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            daysofinterest.Add(DateTime.Parse("12/10/2022 0:00:00 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal));
+            */
+
+            DateTimeOffset currentdate = new DateTimeOffset();
+            foreach (DateTimeOffset d in daysofinterest2)
+            {
+                dates.Add(d);
+                DateTimeOffset next = d.AddDays(1);
+                currentdate = d;
+                while (currentdate < next)
+                {
+                    currentdate = currentdate.AddHours(1);
+                    dates.Add(currentdate);
+                    //log.Add(" dates old " + currentdate.ToString());
+                }
+            }
+
+
+
+            /*
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start("Sun position update");
+                int id = 0;
+
+
+                    foreach (DateTime d in dates)
+                    {
+                        // rise and set in UTC
+                        DateTime localsunrise = sunSettings.GetSunrise(d.Date);//.AddHours(sunSettings.TimeZone); // sunrise on April 20, 2011
+                        DateTime localsunset  = sunSettings.GetSunset(d.Date); // sunset on April 22, 2011
+                                                                               //DateTimeOffset localsunrise1 = new DateTimeOffset(sunSettings.GetSunrise(d.Date), ts);//.AddHours(sunSettings.TimeZone); // sunrise on April 20, 2011
+                                                                               //DateTimeOffset localsunset = new DateTimeOffset(sunSettings.GetSunset(d.Date), ts); // sunset on April 22, 2011
+
+                        //log.Add("localsunrise.kind "+localsunrise.Kind+ "  "+localsunrise.ToLocalTime() + " " + localsunrise.ToUniversalTime());
+                        //log.Add(" Timezone " + sunSettings.TimeZone.ToString());
+                        //TimeSpan ts = new TimeSpan(10, 0, 0);
+                        //TimeSpan ts = new TimeSpan((int)sunSettings.TimeZone, 0, 0);
+                        //log.Add(" Timespan " + ts.ToString());
+
+                        sunSettings.StartDateAndTime = d;
+                        //log.Add(" current time from revit " + sunSettings.StartDateAndTime);
+
+                        sun_dir = utils.GetSunDirection(view);
+                        //log.Add(localsunrise.ToLocalTime() + " ** " + );
+                        if( d> localsunrise.ToLocalTime() & d < localsunset.ToLocalTime())
+                        { 
+                            log.Add(sun_dir.ToString()+" "+d+" JOUR "); 
+                        }
+                        else
+                        {
+                            log.Add(sun_dir.ToString() + " " + d + " NUIT ");
+                        }
+                        //log.Add(siteloc.ConvertToProjectTime(localsunrise) + "  " + siteloc.ConvertToProjectTime(localsunset));
+                        //log.Add(d  +" "+ sun_dir.ToString());
+                        //log.Add("\n");
+
+                        //log.Add(" size " + table[id].Count());
+                    }
+                log.Add("\n");
+
+
+                t.RollBack();
+            }*/
+
+
+            //DateTime datetest = new DateTime();
+
+            //DateTime firstdate =DateTime.Parse("1 / 1 / 2022 0:00:0 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal);
+            //DateTime lastdate = DateTime.Parse("12 / 31 / 2022 23:00:0 ", new CultureInfo("en-US"), DateTimeStyles.AssumeLocal);
+
+            /*foreach (string line in lines)
+            {
+                datetest = DateTime.Parse(line, new CultureInfo("en-US"), DateTimeStyles.AssumeLocal);
+                log.Add(datetest.Kind.ToString());//local time
+                dates.Add(datetest);
+            }*/
+            /*
+            datetest = firstdate;
+            while ( datetest < lastdate)
+            {
+                datetest=datetest.AddHours(1);
+                dates.Add(datetest);
+                log.Add(" Number of dates "+ dates.Count);  
+            }*/
+            //Console.WriteLine(DateTime.Parse(line));
+
+
+
+
+
+
+
+            log.Add(" Application language " + app.Language);
+
+            shadow_computation shadow_computer = new shadow_computation();
+            //List<(Face, Face, Shadow_Configuration, Computation_status)> result;
+            // to track of created volumes for display/hide
+            IList<ElementId> win_ref_display;
+            List<ElementId> all_ref_display = new List<ElementId>();
+
+
+
+
+            // create a shared parameter to attach shadow analysis result to each window
+            bool spcreationOK;
+            Guid sfaguid, ESguid;
+            (spcreationOK, sfaguid) = utils.createSharedParameter(doc,
+                                                                    app,
+                                                                    "shadowFractionArea",
+                                                                    "Fraction of shadowed glass surface for direct sunlight only",
+                                                                   doc.Settings.Categories.get_Item(BuiltInCategory.OST_Windows),
+                                                                   ref log);
+            //(spcreationOK, sfaguid) = utils_window.createSharedParameterForWindows(doc, app, log);
+
+            ESguid = utils.createDataStorageDisplay(doc, log);
+            //ESguid = shadow_computer.ESGuid;
+            //Collect windows
+            Options options = new Options();
+            options.ComputeReferences = true;
+            //FilteredElementCollector collector_w = new FilteredElementCollector(doc);
+            ICollection<Element> windows;
+
+            // Get the element selection of current document.
+            Selection selection = uidoc.Selection;
+            ICollection<ElementId> selectedIds = uidoc.Selection.GetElementIds();
+
+            if (0 == selectedIds.Count)
+            {
+                // If no elements selected.
+                FilteredElementCollector collector_w = new FilteredElementCollector(doc);
+                windows = collector_w.OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_Windows).ToElements();
+            }
+            else
+            {
+                FilteredElementCollector collector_w = new FilteredElementCollector(doc, selectedIds);
+                windows = collector_w.OfClass(typeof(FamilyInstance)).OfCategory(BuiltInCategory.OST_Windows).ToElements();
+            }
+            if (windows.Count == 0)
+            {
+                TaskDialog.Show("Revit", "No window to compute shadow (select some or select nothing)");
+            }
+
+
+
+            List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)> results;
+            List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>> lresults =
+                new List<List<(Face, Face, shadow_computation.Shadow_Configuration, shadow_computation.Computation_status)>>();
+
+
+
+
+            Dictionary<int, List<sun_shad>> table = new Dictionary<int, List<sun_shad>>();
+
+            DateTime utcsunrise;
+            DateTime utcsunset;
+            double sfa = 0;
+
+            using (Transaction t = new Transaction(doc))
+            {
+                t.Start("Sun position update");
+                int id = 0;
+                for (int i = 0; i < windows.Count; i++)
+                {
+                    Element window = windows.ToList()[i];
+                    id = window.Id.IntegerValue;
+                    log.Add(" Window Name " + window.Name + " Id " + window.Id);
+                    table.Add(id, new List<sun_shad>());
+
+                    foreach (DateTimeOffset d in doi)
+                    {
+                        log.Add(" \n ");// start local " + sunSettings.StartDateAndTime+"  UTC "+ sunSettings.StartDateAndTime.ToUniversalTime());
+                        DateTime UTCprojectdate = DateTime.SpecifyKind(d.UtcDateTime, DateTimeKind.Utc);
+                        DateTime LOCprojectdate = DateTime.SpecifyKind(d.DateTime, DateTimeKind.Utc);
+                        log.Add(" UTC projectdate " + UTCprojectdate + " kind " + UTCprojectdate.Kind);
+                        //log.Add(" converttimetoutc " + TimeZoneInfo.ConvertTimeToUtc(UTCprojectdate, projecttzi));
+                        //log.Add(" convertime " + TimeZoneInfo.ConvertTime(UTCprojectdate, projecttzi));
+                        //log.Add(" convertimefromutc " + TimeZoneInfo.ConvertTimeFromUtc(UTCprojectdate, projecttzi));
+
+
+                        sunSettings.StartDateAndTime = UTCprojectdate;
+
+
+                        utcsunrise = sunSettings.GetSunrise(LOCprojectdate);
+                        utcsunset = sunSettings.GetSunset(LOCprojectdate);
+                        sun_dir = utils.GetSunDirection(view);
+                        /*
+                        log.Add(" Kind " + utcsunrise.Kind);
+                        log.Add(" UTC rise " + utcsunrise + " rise utc " + utcsunrise.ToUniversalTime());
+                        log.Add(" UTCproj rise " + sunSettings.GetSunrise(UTCprojectdate));
+
+                        log.Add(" Converted rise " + TimeZoneInfo.ConvertTimeFromUtc(utcsunrise, projecttzi));
+                        log.Add(" Converted rise " + TimeZoneInfo.ConvertTimeFromUtc(utcsunrise, projecttzi).Kind);
+
+                        log.Add(" revit conv2project " + siteloc.ConvertFromProjectTime(DateTime.SpecifyKind(d.DateTime, DateTimeKind.Unspecified)));
+                        //log.Add(" UTC local rise " + localsunrise.ToUniversalTime() + " set " + localsunset.ToUniversalTime());
+                        
+                        */sun_shad ss = new sun_shad();
+                        ss.date = TimeZoneInfo.ConvertTime(UTCprojectdate, projecttzi);
+
+                        //log.Add(" date local " + d + " UTC "+ d.ToUniversalTime()+" ");
+                        //DateTimeOffset dto = new DateTimeOffset(d, new TimeSpan(10,0,0));
+                        //log.Add(" dto " + dto);
+
+                        if (d > utcsunrise & d < utcsunset)
+                        {
+                            // DAY
+                            log.Add(sun_dir.ToString() + " " + d + " JOUR ");
+
+                            results = shadow_computation.ComputeShadowOnWindow(doc, window, sun_dir, log);
+                            sfa = shadow_computation.AnalyzeShadowOnWindow(results);
+                        }
+                        else
+                        {
+                            //NIGHT
+                            log.Add(sun_dir.ToString() + " " + d + " NUIT ");
+                            sfa = -2.0;
+                        }
+                        ss.shadowFraction = sfa;
+
+                        table[id].Add(ss);
+                        //log.Add(" size " + table[id].Count());
+                    }
+                    log.Add(" Number of sfa values : " + table[id].Count());
+
+                }
+                t.RollBack();
+            }
+
+
+            string filename2 = Path.Combine(Path.GetDirectoryName(
+                   Assembly.GetExecutingAssembly().Location),
+                   "sun_data.json");
+
+            var options2 = new JsonSerializerOptions { WriteIndented = true };
+            string jsonString = JsonSerializer.Serialize(table, options2);
+
+            File.WriteAllText(filename2, jsonString);
+
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
+            File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+
+
+            return Result.Succeeded;
+
+        }
+
+    }
 
 
     [Transaction(TransactionMode.Manual)]
@@ -660,6 +694,51 @@ namespace canopia_nogui
             }
 
             //natural_ventilation.equilibriumRatio(doc, results, ref log);
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
+            File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+            rc = Result.Succeeded;
+
+            return rc;
+        }
+
+
+
+    }
+    [Transaction(TransactionMode.Manual)]
+    public class noGUI_sweeping : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIApplication uiapp = commandData.Application;
+            Document doc = uiapp.ActiveUIDocument.Document;
+            View view = doc.ActiveView;
+            Application app = uiapp.Application;
+            Result rc;
+
+            string filename = Path.Combine(Path.GetDirectoryName(
+               Assembly.GetExecutingAssembly().Location),
+               "no_guiSweeping.log");
+            List<string> log = new List<string>();
+
+            log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: start program at .\r\n", DateTime.Now));
+            File.WriteAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
+
+                        
+            IList<Room> rooms = utils.filterRoomList(doc, ref log);
+
+           
+           
+            natural_ventilation.sweepingRooms2(doc, rooms, ref log);
+
+            using (Transaction transaction = new Transaction(doc, "sweeping"))
+            {
+                transaction.Start();
+
+                
+                transaction.RollBack();
+            }
+
 
             log.Add(string.Format("{0:yyyy-MM-dd HH:mm:ss}: end at .\r\n", DateTime.Now));
             File.AppendAllText(filename, string.Join("\r\n", log), Encoding.UTF8);
